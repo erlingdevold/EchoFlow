@@ -1,0 +1,18 @@
+
+version: '3'
+services:
+  raw:
+    build: 
+      context: .
+      dockerfile: ./raw_consumer/Dockerfile.raw
+    volumes:
+      - ./raw_consumer/input:/app/input
+      - ./raw_consumer/output:/app/output
+      - ./raw_consumer/log:/app/log
+    command: /app/entrypoint.sh
+    environment:
+      - INPUT_DIR=/app/input
+      - OUTPUT_DIR=/app/output
+      - LOG_DIR=/app/log
+      - PIPELINE_STAGE=RAW
+

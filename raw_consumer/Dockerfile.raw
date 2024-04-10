@@ -1,0 +1,23 @@
+FROM python:3.11.6 as builder
+
+
+WORKDIR /app
+COPY ./raw_consumer/pyEcholab .
+RUN pip install . 
+
+FROM python:3.11.6
+WORKDIR /app
+
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+
+COPY ./raw_consumer/requirements.txt .
+
+RUN pip install watchdog
+RUN pip install -r requirements.txt
+
+COPY ./entrypoint.sh .
+COPY ./raw_consumer/raw.py ./main.py
+COPY ./watchdog.py ./stat.py
+
+
+ENTRYPOINT [ "/app/entrypoint.sh" ]
