@@ -15,4 +15,22 @@ services:
       - OUTPUT_DIR=/app/output
       - LOG_DIR=/app/log
       - PIPELINE_STAGE=RAW
+  segmentation:
+    build: 
+      context: .
+      dockerfile: ./segmentation/Dockerfile.segmentation
+    volumes:
+      - ./raw_consumer/output:/app/input
+      - ./segmentation/output:/app/output
+      - ./segmentation/log:/app/log
+    command: /app/entrypoint.sh
+    environment:
+      - INPUT_DIR=/app/input
+      - OUTPUT_DIR=/app/output
+      - LOG_DIR=/app/log
+      - PIPELINE_STAGE=SEG
+    depends_on:
+      - raw
+  
+
 
