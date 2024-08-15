@@ -3,6 +3,7 @@ FROM python:3.11.6 as builder
 
 WORKDIR /app
 COPY ./raw_consumer/pyEcholab .
+# RUN pip install echopype
 RUN pip install . 
 
 FROM python:3.11.6

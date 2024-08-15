@@ -1,0 +1,15 @@
+FROM python:3.11.6 
+
+WORKDIR /app
+
+COPY ./preprocessing/requirements.txt .
+
+RUN pip install watchdog
+RUN pip install -r requirements.txt
+
+COPY ./entrypoint.sh .
+COPY ./preprocessing/preprocessing.py ./main.py
+COPY ./watchdog.py ./stat.py
+
+
+ENTRYPOINT [ "/app/entrypoint.sh" ]

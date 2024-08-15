@@ -4,10 +4,12 @@ import xarray as xr
 import os
 import logging
 
+# import echopype as ep
 
 input_dir = os.getenv("INPUT_DIR", "/data/sonar")
 output_dir = os.getenv("OUTPUT_DIR", "/data/processed")
-log = os.getenv("LOG_DIR", "/data/logs")
+log = os.getenv("LOG_DIR", "log")
+# sonar_model = os.getenv("SONAR_MODEL","ek80")
 
 logging.basicConfig(
     filename=Path(log) / "raw.log",
@@ -48,6 +50,11 @@ def read_raw(fp: Path):
 
     return ek80, channel_data
 
+@log_errors
+def read_raw_ep(fp: Path):
+
+    ek = ep.open_raw(fp,sonar_model=sonar_model)
+    return ek
 
 @log_errors
 def sv_to_xarray(sv):
@@ -85,7 +92,6 @@ def generate_freq_sv_ds(fp: Path):
     return da
 
 
-from tqdm.notebook import tqdm
 
 
 def reduce_files_to_diff(inp, out):
@@ -100,7 +106,7 @@ def reduce_files_to_diff(inp, out):
 
 @log_errors
 def consume_dir(input_dir: Path, output_dir: Path):
-    data = []
+    data = None 
     files_to_compute = reduce_files_to_diff(input_dir, output_dir)
     for file in files_to_compute:
         # file = (input_dir / file).with_suffix(".raw")
@@ -108,13 +114,15 @@ def consume_dir(input_dir: Path, output_dir: Path):
         try:
             data = generate_freq_sv_ds(file)
         except Exception as e:
+            logging.debug(e)
             continue
         try:
             data.to_netcdf((output_dir / file.stem).with_suffix(".nc"))
         except Exception as e:
+            logging.debug(e)
             continue
     print("Done")
-    if len(data) == 0:
+    if data is None:
         logging.error("No data was processed")
 
     return data
