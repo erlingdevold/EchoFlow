@@ -31,6 +31,24 @@ services:
       - PIPELINE_STAGE=PRE
     depends_on:
       - raw
-  
+  infer:
+    build: 
+      context: .
+      dockerfile: ./inference/Dockerfile.infer
+    volumes:
+      - ./preprocessing/output:/app/input
+      - ./inference/output:/app/output
+      - ./inference/log:/app/log
+    command: /app/entrypoint.sh
+    environment:
+      - INPUT_DIR=/app/input
+      - OUTPUT_DIR=/app/output
+      - LOG_DIR=/app/log
+      - PIPELINE_STAGE=INFER
+      - ARCH=vit_small
+      - PATCH_SZ=8
+      - DOWNSAMPLE_SIZE=5000
+    depends_on:
+      - preprocessing 
 
 

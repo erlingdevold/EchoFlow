@@ -1,0 +1,19 @@
+FROM python:3.11.6 
+
+WORKDIR /app
+
+COPY ./inference/requirements.txt .
+
+RUN pip install watchdog
+RUN pip install -r requirements.txt
+
+COPY ./entrypoint.sh .
+COPY ./inference/inspect_attention.py ./main.py
+COPY ./watchdog.py ./stat.py
+COPY ./inference/attention_inspect.py ./attention_inspect.py
+COPY ./inference/checkpoint.pth ./checkpoint.pth
+COPY ./inference/utils.py ./utils.py
+COPY ./inference/vision_transformer.py ./vision_transformer.py
+
+
+ENTRYPOINT [ "/app/entrypoint.sh" ]
