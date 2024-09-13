@@ -1,3 +1,4 @@
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 import os
 import time
@@ -186,11 +187,8 @@ def is_file_ready(file: Path, retries=10, wait_time=1) -> bool:
     return False
 
 
-# Process all files in a directory
-def consume_dir(input_dir: Path, output_dir: Path):
-    log.info(f"Starting to process files from {input_dir}")
-    files_to_consume = reduce_files_to_diff(input_dir, output_dir)
-    for file in files_to_consume:
+def process_file(file: Path, output_dir: Path):
+    try:
         if is_file_ready(file, retries=10, wait_time=1):
             if sv_to_jpg(file, estimate_bot=True):
                 mark_as_processed(file)
@@ -198,8 +196,29 @@ def consume_dir(input_dir: Path, output_dir: Path):
                 log.error(f"Skipping file {file} due to save failure.")
         else:
             log.error(f"Skipping file {file} after retries.")
-    log.info("Finished processing files.")
-    return None
+    except Exception as e:
+        logging.error(f"Error processing {file} : {e}")
+
+
+# Process all files in a directory
+def consume_dir(input_dir: Path, output_dir: Path, max_workers=12):
+    files_to_compute = list(reduce_files_to_diff(input_dir, output_dir))
+
+    logging.info(f"Starting to process {len(files_to_compute)} files in parallel.")
+
+    # Process files in parallel using ProcessPoolExecutor
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        future_to_file = {
+            executor.submit(process_file, file, output_dir): file
+            for file in files_to_compute
+        }
+
+        for future in as_completed(future_to_file):
+            file = future_to_file[future]
+            try:
+                future.result()  # This will raise an exception if one occurred during processing
+            except Exception as e:
+                logging.error(f"Error processing file {file}: {e}")
 
 
 # Entry point of the script
