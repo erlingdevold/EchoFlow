@@ -150,7 +150,7 @@ def process_file(file: Path, output_dir: Path):
         logging.error(f"Error processing {file}: {e}")
 
 
-def consume_dir(input_dir: Path, output_dir: Path, max_workers=4):
+def consume_dir(input_dir: Path, output_dir: Path, max_workers=12):
     files_to_compute = list(reduce_files_to_diff(input_dir, output_dir))
 
     logging.info(f"Starting to process {len(files_to_compute)} files in parallel.")

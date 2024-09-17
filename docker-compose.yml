@@ -1,4 +1,3 @@
-
 version: '3'
 services:
   raw:
@@ -6,8 +5,8 @@ services:
       context: .
       dockerfile: ./raw_consumer/Dockerfile.raw
     volumes:
-      - ./raw_consumer/input:/app/input
-      - ./raw_consumer/output:/app/output
+      - /data/saas/Nordtind/ES80/ES80-38:/app/input
+      - /data/subzerospace/output:/app/output
       - ./raw_consumer/log:/app/log
     command: /app/entrypoint.sh
     environment:
@@ -15,13 +14,14 @@ services:
       - OUTPUT_DIR=/app/output
       - LOG_DIR=/app/log
       - PIPELINE_STAGE=RAW
+
   preprocessing:
     build: 
       context: .
       dockerfile: ./preprocessing/Dockerfile.preprocessing
     volumes:
-      - ./raw_consumer/output:/app/input
-      - ./preprocessing/output:/app/output
+      - /data/subzerospace/output:/app/input
+      - /data/subzerospace/pp_output:/app/output
       - ./preprocessing/log:/app/log
     command: /app/entrypoint.sh
     environment:
@@ -31,24 +31,47 @@ services:
       - PIPELINE_STAGE=PRE
     depends_on:
       - raw
-  infer:
+
+  monitor:
     build: 
-      context: .
-      dockerfile: ./inference/Dockerfile.infer
+      context: ./monitor
+      dockerfile: Dockerfile.monitor
+    ports:
+      - "8050:8050"
     volumes:
-      - ./preprocessing/output:/app/input
-      - ./inference/output:/app/output
-      - ./inference/log:/app/log
-    command: /app/entrypoint.sh
+      - /data/saas/Nordtind/ES80/ES80-38:/app/input
+      - /data/subzerospace/output:/app/output
+      - /data/subzerospace/pp_output:/app/pp_output
+      - ./raw_consumer/log:/app/logs/raw
+      - ./preprocessing/log:/app/logs/preprocessing
     environment:
       - INPUT_DIR=/app/input
       - OUTPUT_DIR=/app/output
-      - LOG_DIR=/app/log
-      - PIPELINE_STAGE=INFER
-      - ARCH=vit_small
-      - PATCH_SZ=8
-      - DOWNSAMPLE_SIZE=5000
+      - PP_OUTPUT_DIR=/app/pp_output
+      - LOG_DIR=/app/logs
+    command: python3 /app/monitor.py
     depends_on:
-      - preprocessing 
+      - raw
+      - preprocessing
+
+  # infer:
+  #   build: 
+  #     context: .
+  #     dockerfile: ./inference/Dockerfile.infer
+  #   volumes:
+  #     - ./preprocessing/output:/app/input
+  #     - ./inference/output:/app/output
+  #     - ./inference/log:/app/log
+  #   command: /app/entrypoint.sh
+  #   environment:
+  #     - INPUT_DIR=/app/input
+  #     - OUTPUT_DIR=/app/output
+  #     - LOG_DIR=/app/log
+  #     - PIPELINE_STAGE=INFER
+  #     - ARCH=vit_small
+  #     - PATCH_SZ=8
+  #     - DOWNSAMPLE_SIZE=5000
+  #   depends_on:
+  #     - preprocessing 
 
 
