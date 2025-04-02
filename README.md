@@ -1,5 +1,7 @@
 
 # DINO Pipeline
+[![DOI](https://zenodo.org/badge/842972791.svg)](https://doi.org/10.5281/zenodo.15126704)
+
 
 This repository contains a pipeline that utilizes DINO (Vision Transformer) for processing and inference tasks. It includes preprocessing and inference components, with Docker support for streamlined execution in isolated environments.
 
