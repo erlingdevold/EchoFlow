@@ -15,6 +15,14 @@ jobs:
           fetch-depth: 0            # full history so submodule SHAs resolve
 
       # 2.  Build all Docker images to make sure the Dockerfiles are valid
+      - name: Prerequisites
+        run: |
+          touch ./inference/checkpoint.pth
+          mkdir -p ./data/input
+          mkdir -p ./data/preprocessing
+          mkdir -p ./data/inference
+          mkdir -p ./data/monitor
+
       - name: Build Docker images
         run: docker compose -f docker-compose.yml build
 
