@@ -42,7 +42,21 @@ jobs:
           echo "❌  No files produced in data/inference within 1 minute."
           docker compose -f docker-compose.yml logs --tail 50
           exit 1
+      - name: Embed PNG preview in summary
+        if: success()
+        run: |
+          echo "## Preprocessing sample" >> $GITHUB_STEP_SUMMARY
+          for img in $(ls data/preprocessing/**/*.png | head -n 5); do
+            b64=$(base64 -w0 "$img")
+            echo "<img src=\"data:image/png;base64,$b64\" height=\"200\"/>" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
 
+          echo "## Inference sample" >> $GITHUB_STEP_SUMMARY
+          for img in $(ls data/inference/**/*.png | head -n 5); do
+            b64=$(base64 -w0 "$img")
+            echo "<img src=\"data:image/png;base64,$b64\" height=\"200\"/>" >> $GITHUB_STEP_SUMMARY
+          done
       # 3) Always tear down containers & volumes so runners stay clean
       - name: Teardown
         if: always()
