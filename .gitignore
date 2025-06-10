@@ -1,5 +1,7 @@
-inp
-out
+data/input
+data/preprocessing
+data/inference
+data/monitor
 log
 
-.python_version
+.python_version*.raw

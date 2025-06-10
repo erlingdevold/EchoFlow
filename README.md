@@ -39,8 +39,22 @@ It includes preprocessing and inference components, with Docker support for stre
 
 - Docker
 - Docker Compose
+- AWS CLI
+- Git
 
 Alternatively, you can run the pipeline outside of Docker by installing the required Python packages from respective modules `requirements.txt`.
+## Populate input
+```bash
+
+# Load test echogram
+aws s3 cp --no-sign-request "s3://noaa-wcsd-pds/data/raw/Bell_M._Shimada/SH2306/EK80/Hake-D20230811-T165727.raw" data/input
+
+```
+```bash
+
+git submodule sync
+
+```
 
 ## Setup
 
