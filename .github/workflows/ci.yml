@@ -1,46 +1,34 @@
-name: build-and-test
+name: compose-ci
 
 on: [push, pull_request]
 
 jobs:
-  hybrid:
+  compose-test:
     runs-on: ubuntu-latest
 
     steps:
-      # 1.  Grab the code
       - name: Checkout repository (with submodules)
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'   # pull submodules
-          fetch-depth: 0            # full history so submodule SHAs resolve
+          submodules: 'recursive'
+          fetch-depth: 0
 
-      # 2.  Build all Docker images to make sure the Dockerfiles are valid
-      - name: Prerequisites
+      - name: Download test data
         run: |
-          touch ./inference/checkpoint.pth
-          mkdir -p ./data/input
-          mkdir -p ./data/preprocessing
-          mkdir -p ./data/inference
-          mkdir -p ./data/monitor
+          mkdir -p data/input
+          aws s3 cp --no-sign-request "s3://noaa-wcsd-pds/data/raw/Bell_M._Shimada/SH2306/EK80/Hake-D20230811-T165727.raw" data/input/
 
-      - name: Build Docker images
-        run: docker compose -f docker-compose.yml build
-
-      # 3.  Set up a lightweight Python (3.11)
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      # 4.  Install just what the smoke test needs
-      #     (requirements.txt + pytest + pillow for dummy image)
-      - name: Install Python deps
+      - name: Build & run Docker pipeline
         run: |
-          pip install -r inference/requirements.txt
-          cd raw_consumer/pyEcholab
-          pip install -e .
-          cd ../..
-          pip install pytest pillow
+          docker compose \
+            -f docker-compose.yml \
+            up \
+            --build \
+            --abort-on-container-exit \
+            --exit-code-from infer \
+            raw preprocessing infer
 
-      # 5.  Run the smoke test
-      - name: Run tests
-        run: pytest -q
+      # 3) Always tear down containers & volumes so runners stay clean
+      - name: Teardown
+        if: always()
+        run: docker compose -f docker-compose.yml down -v
