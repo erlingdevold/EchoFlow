@@ -19,15 +19,29 @@ jobs:
           touch inference/checkpoint.pth
           aws s3 cp --no-sign-request "s3://noaa-wcsd-pds/data/raw/Bell_M._Shimada/SH2306/EK80/Hake-D20230811-T165727.raw" data/input/
 
-      - name: Build & run Docker pipeline
+      - name: Start Docker pipeline (detached)
         run: |
           docker compose \
             -f docker-compose.yml \
             up \
-            --build \
-            --abort-on-container-exit \
-            --exit-code-from infer \
+            --build -d \
             raw preprocessing infer
+
+      - name: Wait for inference output (max 5 min)
+        run: |
+          end=$((SECONDS+60))  # 1 minute timeout
+          echo "Polling for files in data/inference ..."
+          while [ $SECONDS -lt $end ]; do
+            file_count=$(ls -1 data/inference 2>/dev/null | wc -l || true)
+            if [ "$file_count" -gt 0 ]; then
+              echo "✅  Found $file_count file(s) in data/inference – pipeline succeeded."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "❌  No files produced in data/inference within 1 minute."
+          docker compose -f docker-compose.yml logs --tail 50
+          exit 1
 
       # 3) Always tear down containers & volumes so runners stay clean
       - name: Teardown
