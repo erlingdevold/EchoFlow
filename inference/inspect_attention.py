@@ -46,11 +46,24 @@ def setup_device_and_model(arch='vit_tiny', patch_size=16, pretrained_weights=No
         p.requires_grad = False
 
     if pretrained_weights and os.path.isfile(pretrained_weights):
-        state_dict = torch.load(pretrained_weights, map_location="cpu",weights_only=False).get(checkpoint_key, {})
-        state_dict = {k.replace("module.", "").replace("backbone.", ""): v for k, v in state_dict.items()}
-        model.load_state_dict(state_dict, strict=False)
-    else:
-        print(f"Invalid path to pretrained weights: {pretrained_weights}")
+        try:
+            state_dict = torch.load(pretrained_weights, map_location="cpu",weights_only=False).get(checkpoint_key, {})
+            state_dict = {k.replace("module.", "").replace("backbone.", ""): v for k, v in state_dict.items()}
+            model.load_state_dict(state_dict, strict=False)
+        except Exception as e:
+            # pull from timm
+            if  patch_size == 16:
+                url = "dino_deitsmall16_pretrain/dino_deitsmall16_pretrain.pth"
+            elif patch_size == 8:
+                url = "dino_deitsmall8_300ep_pretrain/dino_deitsmall8_300ep_pretrain.pth"  # model used for visualizations in our paper
+            else:
+                raise ValueError(f"Invalid patch size: {patch_size}")
+
+            model = vits.__dict__['vit_small'](patch_size=patch_size, num_classes=0).eval().to(device)
+            state_dict = torch.hub.load_state_dict_from_url(url="https://dl.fbaipublicfiles.com/dino/" + url, map_location="cpu", weights_only=False)
+            model.load_state_dict(state_dict, strict=False)
+            model.eval().to(device)
+
     
     return device, model
 
@@ -69,7 +82,7 @@ def get_attention_maps(model, img_tensor, image_size, patch_size):
     nh = attentions.shape[0]
 
     attentions = attentions.reshape(nh, image_size[0]//patch_size, image_size[1]//patch_size)
-    attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=patch_size, mode="nearest")[0].cpu().numpy()
+    attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=patch_size, mode="nearest")[0].detach().cpu().numpy()
     attentions = (attentions - attentions.min()) / (attentions.max() - attentions.min())
     return attentions
 

@@ -55,7 +55,6 @@ aws s3 cp --no-sign-request "s3://noaa-wcsd-pds/data/raw/Bell_M._Shimada/SH2306/
 git submodule sync
 
 ```
-
 ## Setup
 
 ### Running with Docker

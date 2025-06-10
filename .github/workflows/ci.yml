@@ -36,6 +36,9 @@ jobs:
       - name: Install Python deps
         run: |
           pip install -r inference/requirements.txt
+          cd raw_consumer/pyEcholab
+          pip install -e .
+          cd ../..
           pip install pytest pillow
 
       # 5.  Run the smoke test
