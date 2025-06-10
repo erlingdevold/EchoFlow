@@ -1,0 +1,31 @@
+name: build-and-test
+
+on: [push, pull_request]
+
+jobs:
+  hybrid:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1.  Grab the code
+      - uses: actions/checkout@v4
+
+      # 2.  Build all Docker images to make sure the Dockerfiles are valid
+      - name: Build Docker images
+        run: docker compose -f docker-compose.yml build
+
+      # 3.  Set up a lightweight Python (3.11)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 4.  Install just what the smoke test needs
+      #     (requirements.txt + pytest + pillow for dummy image)
+      - name: Install Python deps
+        run: |
+          pip install -r inference/requirements.txt
+          pip install pytest pillow
+
+      # 5.  Run the smoke test
+      - name: Run tests
+        run: pytest -q
