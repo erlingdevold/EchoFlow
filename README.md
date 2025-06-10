@@ -1,5 +1,5 @@
-
 # DINO Pipeline
+[![CI](https://github.com/erlingdevold/EchoFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/erlingdevold/EchoFlow/actions)
 [![DOI](https://zenodo.org/badge/842972791.svg)](https://doi.org/10.5281/zenodo.15126704)
 
 This repository contains a pipeline for processing Kongsberg EK(S)60 and 80 files into Sv images. 
@@ -45,15 +45,10 @@ It includes preprocessing and inference components, with Docker support for stre
 Alternatively, you can run the pipeline outside of Docker by installing the required Python packages from respective modules `requirements.txt`.
 ## Populate input
 ```bash
-
-# Load test echogram
-aws s3 cp --no-sign-request "s3://noaa-wcsd-pds/data/raw/Bell_M._Shimada/SH2306/EK80/Hake-D20230811-T165727.raw" data/input
-
-```
-```bash
-
-git submodule sync
-
+aws s3 cp --no-sign-request \
+  "s3://noaa-wcsd-pds/data/raw/Bell_M._Shimada/SH2306/EK80/Hake-D20230811-T165727.raw" \
+  data/input
+git submodule sync --recursive
 ```
 ## Setup
 
@@ -64,7 +59,7 @@ git submodule sync
    First, ensure you have Docker and Docker Compose installed. Then run the following command to start the pipeline:
 
    ```bash
-   docker-compose up --build
+   docker compose up --build
    ```
 
    This will build the Docker containers for preprocessing and inference and start the pipeline.
@@ -74,7 +69,7 @@ git submodule sync
    Once the containers are running, you can trigger the preprocessing step by executing:
 
    ```bash
-   docker exec -it preprocessing-container python preprocessing/preprocessing.py
+   docker compose exec preprocessing python preprocessing/preprocessing.py
    ```
 
 3. **Running the Inference**:
@@ -82,7 +77,7 @@ git submodule sync
    After preprocessing, you can run inference by executing:
 
    ```bash
-   docker exec -it inference-container python inference/inspect_attention.py
+   docker compose exec infer python inference/inspect_attention.py
    ```
 
    This script performs inference using the DINO Vision Transformer model and generates visualizations of attention maps.
@@ -144,9 +139,12 @@ If you'd prefer to run the pipeline without Docker, you can follow these steps:
 
 The output of the inference step, including generated attention maps and transformed images, will be saved in the `inference/output/` directory. Each run will create a timestamped subdirectory for organized output management.
 
+Example output path:  
+`data/inference/Haul_42/0001_38kHz.png`
+
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Licensed under the MIT License – see [LICENSE](LICENSE) for details.
 
 ## Acknowledgements
 

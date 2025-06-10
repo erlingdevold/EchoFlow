@@ -74,7 +74,7 @@ def sigma_thresholding_upper(data, sigma=3):
 def sv_to_jpg(file, vmin=-80, vmax=-30, estimate_bot=False):
     ds = xr.open_dataset(file)
     base_out = Path(output_dir)
-    success = True
+    success = False
 
     for freq in ds.frequency:
         freq_data = ds.Sv.sel(frequency=freq).dropna(dim="depth")
@@ -82,6 +82,7 @@ def sv_to_jpg(file, vmin=-80, vmax=-30, estimate_bot=False):
 
         if freq_data.size == 0:
             log.warning(f"No valid Sv data for frequency {freq.data} in file {file.stem}. Skipping.")
+            success = False
             continue
 
         if "bottom_depth" in ds:
@@ -91,7 +92,7 @@ def sv_to_jpg(file, vmin=-80, vmax=-30, estimate_bot=False):
             freq_data = freq_data.where(freq_data.depth >= 25, drop=True)
         elif estimate_bot:
             debug_path = Path(log_path)
-            plt.imshow(freq_data, aspect="auto", vmin=-80, vmax=-30)
+            plt.imshow(freq_data.T, aspect="auto", vmin=-80, vmax=-30)
             plt.savefig(debug_path / f"{file.stem}_debug.jpg")
             plt.clf()
 
@@ -211,8 +212,14 @@ def process_file(file: Path, output_dir: Path):
             if sv_to_jpg(file, estimate_bot=True):
                 mark_as_processed(file)  # Mark file as processed
             else:
-                log.error(f"Skipping file {file} due to save failure.")
-                mark_as_failed(file)  # Mark file as failed
+                for i in range(3):
+                    if sv_to_jpg(file, estimate_bot=True):
+                        mark_as_processed(file)  # Mark file as processed
+                        break
+                    time.sleep(1)
+                else:
+                    log.error(f"Skipping file {file} after retries.")
+                    mark_as_failed(file)  # Mark file as failed
         else:
             log.error(f"Skipping file {file} after retries.")
             mark_as_failed(file)  # Mark file as failed

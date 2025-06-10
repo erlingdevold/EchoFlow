@@ -1,0 +1,13 @@
+---
+cff-version: 1.2.0
+title: "EchoFlow"
+version: "1.0.0"
+doi: 10.5281/zenodo.xxxxxxx      # replace after Zenodo release
+message: "If you use EchoFlow in your research, please cite it as:"
+authors:
+  - family-names: Devold
+    given-names: Erling
+    orcid: 0009-0000-0949-5992
+date-released: 2025-06-10
+license: MIT
+url: https://github.com/erlingdevold/EchoFlow
