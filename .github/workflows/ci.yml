@@ -84,7 +84,7 @@ jobs:
           count=0
           for img in data/preprocessing/**/*.jpg; do
             b64=$(base64 -w 0 "$img")
-            echo "<img src=\"data:image/png;base64,$b64\" height=\"150\"/>" \
+            echo "<img src=\"data:image/jpg;base64,$b64\" height=\"150\"/>" \
               >> "$GITHUB_STEP_SUMMARY"
             ((count++ == 4)) && break
           done
