@@ -93,7 +93,7 @@ jobs:
               b64=$(base64 -w0 "$img")
               echo "<img src=\"data:image/png;base64,$b64\" height=\"150\"/>" \
                 >> "$GITHUB_STEP_SUMMARY"
-              ((cnt++ == 4)) && break
+              ((cnt++ == 1)) && break
             done
           fi
 
@@ -108,7 +108,7 @@ jobs:
               b64=$(base64 -w0 "$img")
               echo "<img src=\"data:image/png;base64,$b64\" height=\"150\"/>" \
                 >> "$GITHUB_STEP_SUMMARY"
-              ((cnt++ == 4)) && break
+              ((cnt++ == 1)) && break
             done
           fi
       #--------------------------------------------------------------
