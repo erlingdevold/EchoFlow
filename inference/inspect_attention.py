@@ -127,7 +127,14 @@ def infer_attention_heads(file,out,arch,patch_size,chkp,image_size=(1000,1000)):
 def reduce_files_to_diff(inp, out):
     in_files = {f.stem for f in inp.glob("*")}
     out_files = {f.stem for f in out.glob("*")}
+    # check outfolders for notempty.
+    for file in out_files:
+        if not any(out.glob(f"{file}/*.png")):
+            out_files.remove(file)
+    
     diff = in_files - out_files
+
+
 
     return filter(lambda x: x.stem in diff, inp.glob("*"))
 

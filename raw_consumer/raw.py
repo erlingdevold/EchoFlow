@@ -35,10 +35,7 @@ def log_errors(func):
 
 @log_errors
 def read_raw(fp: Path):
-    if "2019847-D20190502-T004037" in str(fp):  # test file for bot files
-        echo = EK60.EK60()
-    else:
-        echo = EK80.EK80()
+    echo = EK80.EK80()
 
     logging.info(f"Reading {fp}")
 
@@ -168,6 +165,7 @@ def consume_dir(input_dir: Path, output_dir: Path, max_workers=12):
                 future.result()  # This will raise an exception if one occurred during processing
             except Exception as e:
                 logging.error(f"Error processing file {file}: {e}")
+
 
     logging.info("Finished processing files in parallel.")
 

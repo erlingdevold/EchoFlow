@@ -74,6 +74,7 @@ def sigma_thresholding_upper(data, sigma=3):
 def sv_to_jpg(file, vmin=-80, vmax=-30, estimate_bot=False):
     ds = xr.open_dataset(file)
     base_out = Path(output_dir)
+    success = True
 
     for freq in ds.frequency:
         freq_data = ds.Sv.sel(frequency=freq).dropna(dim="depth")
@@ -166,16 +167,14 @@ def mark_as_processed(file: Path):
 
 
 # Check if a file is ready to be processed
-def is_file_ready(file: Path, retries=10, wait_time=1) -> bool:
+def is_file_ready(file: Path, retries=20, wait_time=2) -> bool:
     retry_count = 0
     while retry_count < retries:
         if not file.exists():
             log.warning(f"File {file} does not exist. Retry {retry_count}/{retries}")
-            return False
 
         if file.stat().st_size == 0:
             log.warning(f"File {file} is empty. Retry {retry_count}/{retries}")
-            return False
 
         try:
             ds = xr.open_dataset(file)
@@ -208,7 +207,7 @@ import gc
 # Process an individual file
 def process_file(file: Path, output_dir: Path):
     try:
-        if is_file_ready(file, retries=10, wait_time=1):
+        if is_file_ready(file, retries=20, wait_time=2):
             if sv_to_jpg(file, estimate_bot=True):
                 mark_as_processed(file)  # Mark file as processed
             else:
