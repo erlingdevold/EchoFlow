@@ -3,66 +3,103 @@ name: compose-ci
 on: [push, pull_request]
 
 jobs:
-  compose-test:
+  pipeline:
     runs-on: ubuntu-latest
 
     steps:
+      #--------------------------------------------------------------
+      # 1. Checkout (include submodules such as raw_consumer/pyEcholab)
+      #--------------------------------------------------------------
       - name: Checkout repository (with submodules)
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
+          submodules: recursive
           fetch-depth: 0
 
+      #--------------------------------------------------------------
+      # 2. (Optional) pull a sample .raw file so the pipeline has input
+      #--------------------------------------------------------------
       - name: Download test data
         run: |
           mkdir -p data/input
-          touch inference/checkpoint.pth
-          aws s3 cp --no-sign-request "s3://noaa-wcsd-pds/data/raw/Bell_M._Shimada/SH2306/EK80/Hake-D20230811-T165727.raw" data/input/
+          aws s3 cp --no-sign-request \
+            "s3://noaa-wcsd-pds/data/raw/Bell_M._Shimada/SH2306/EK80/Hake-D20230811-T165727.raw" \
+            data/input/
 
+      #--------------------------------------------------------------
+      # 3. Build images & start RAW → PRE → INFER stack detached
+      #--------------------------------------------------------------
       - name: Start Docker pipeline (detached)
         run: |
-          docker compose \
-            -f docker-compose.yml \
-            up \
-            --build -d \
+          docker compose -f docker-compose.yml up --build -d \
             raw preprocessing infer
 
-      - name: Wait for inference output (max 5 min)
+      #--------------------------------------------------------------
+      # 4. Poll for inference output (max 5 min)
+      #--------------------------------------------------------------
+      - name: Wait for inference output (max 5 min)
         run: |
-          end=$((SECONDS+60))  # 1 minute timeout
-          echo "Polling for files in data/inference ..."
+          end=$((SECONDS+300))
+          echo "Polling for PNGs in data/inference ..."
           while [ $SECONDS -lt $end ]; do
-            file_count=$(ls -1 data/inference 2>/dev/null | wc -l || true)
-            if [ "$file_count" -gt 0 ]; then
-              echo "✅  Found $file_count file(s) in data/inference – pipeline succeeded."
+            cnt=$(find data/inference -type f -name '*.png' | wc -l)
+            if [ "$cnt" -gt 0 ]; then
+              echo "✅  Found $cnt PNG(s) – pipeline succeeded."
               exit 0
             fi
             sleep 10
           done
-          echo "❌  No files produced in data/inference within 1 minute."
+          echo "❌  No PNGs produced in 5 minutes."
           docker compose -f docker-compose.yml logs --tail 50
           exit 1
-      - name: Embed PNG preview in summary
-        if: success()
-        run: |
-          shopt -s globstar nullglob   # << enable ** and skip if nothing matches
-          echo "## Preprocessing sample" >> $GITHUB_STEP_SUMMARY
-          for img in data/preprocessing/**/*.png; do       # no ls needed
-      b64=$(base64 -w 0 "$img")
-      echo "<img src=\"data:image/png;base64,$b64\" height=\"200\"/>" \
-           >> $GITHUB_STEP_SUMMARY
-      ((count++ == 4)) && break      # stop after 5 images
-    done
-    echo "" >> $GITHUB_STEP_SUMMARY
 
-    echo "## Inference sample" >> $GITHUB_STEP_SUMMARY
-    for img in data/inference/**/*.png; do
-      b64=$(base64 -w 0 "$img")
-      echo "<img src=\"data:image/png;base64,$b64\" height=\"200\"/>" \
-           >> $GITHUB_STEP_SUMMARY
-      ((count++ == 4)) && break
-        done
-      # 3) Always tear down containers & volumes so runners stay clean
+      #--------------------------------------------------------------
+      # 5. Upload all generated PNGs as artifacts
+      #--------------------------------------------------------------
+      - name: Upload preprocessing PNGs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preprocessing-pngs
+          path: data/preprocessing/**/*.png
+          retention-days: 7
+
+      - name: Upload inference PNGs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inference-pngs
+          path: data/inference/**/*.png
+          retention-days: 7
+
+      #--------------------------------------------------------------
+      # 6. Append a small inline gallery to the workflow summary
+      #--------------------------------------------------------------
+      - name: Embed PNG preview in summary
+        if: always()
+        run: |
+          shopt -s globstar nullglob
+          echo "## Preprocessing sample" >> "$GITHUB_STEP_SUMMARY"
+          count=0
+          for img in data/preprocessing/**/*.png; do
+            b64=$(base64 -w 0 "$img")
+            echo "<img src=\"data:image/png;base64,$b64\" height=\"150\"/>" \
+              >> "$GITHUB_STEP_SUMMARY"
+            ((count++ == 4)) && break
+          done
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Inference sample" >> "$GITHUB_STEP_SUMMARY"
+          count=0
+          for img in data/inference/**/*.png; do
+            b64=$(base64 -w 0 "$img")
+            echo "<img src=\"data:image/png;base64,$b64\" height=\"150\"/>" \
+              >> "$GITHUB_STEP_SUMMARY"
+            ((count++ == 4)) && break
+          done
+
+      #--------------------------------------------------------------
+      # 7. Tear down containers & volumes (always runs)
+      #--------------------------------------------------------------
       - name: Teardown
         if: always()
         run: docker compose -f docker-compose.yml down -v
