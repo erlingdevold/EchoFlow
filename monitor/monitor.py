@@ -6,13 +6,11 @@ from pathlib import Path
 import os
 import datetime
 
-# Set your directories to monitor from environment variables
 dir_input = os.getenv("INPUT_DIR", "/app/input")
 dir_output = os.getenv("OUTPUT_DIR", "/app/output")
 dir_pp_output = os.getenv("PP_OUTPUT_DIR", "/app/pp_output")
 log_dir = os.getenv("LOG_DIR", "/app/logs")
 
-# Initialize time series storage for output and post-processed files
 time_series_data = {"time": [], "output_files": [], "pp_output_files": []}
 
 
@@ -20,12 +18,11 @@ time_series_data = {"time": [], "output_files": [], "pp_output_files": []}
 def count_files_in_directory(directory):
     try:
         path = Path(directory)
-        return len(list(path.glob("*")))  # List all files and count
+        return len(list(path.glob("*"))) 
     except Exception as e:
-        return 0  # Return 0 in case of an error
+        return 0 
 
 
-# Function to read the last few error lines from a log file
 def read_last_log_entries(log_file, lines=5):
     try:
         with open(log_file, "r") as file:
@@ -34,14 +31,12 @@ def read_last_log_entries(log_file, lines=5):
         return "No log file found."
 
 
-# Function to calculate differences between consecutive time steps
 def calculate_differences(series):
     if len(series) < 2:
-        return [0]  # No difference for the first step
+        return [0] 
     return [series[i] - series[i - 1] for i in range(1, len(series))]
 
 
-# Initialize the Dash app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUX])
 
 app.layout = html.Div(
@@ -183,34 +178,29 @@ def update_dashboard(n):
     output_count = count_files_in_directory(dir_output)
     pp_output_count = count_files_in_directory(dir_pp_output)
 
-    # Determine progress values and percentages
     total_files = max(
         input_count, output_count, pp_output_count
-    )  # Use max as total file baseline
+    ) 
     if total_files == 0:
-        total_files = 1  # Avoid division by zero
+        total_files = 1 
 
     input_progress = int((input_count / total_files) * 100)
     output_progress = int((output_count / total_files) * 100)
     pp_output_progress = int((pp_output_count / total_files) * 100)
 
-    # Read the latest log entries
     raw_log = read_last_log_entries(f"{log_dir}/raw/raw.log", lines=5)
     preprocessing_log = read_last_log_entries(
         f"{log_dir}/preprocessing/preprocessing.log", lines=5
     )
 
-    # Update time series data (only for output and post-processed files)
     current_time = datetime.datetime.now().strftime("%H:%M:%S")
     time_series_data["time"].append(current_time)
     time_series_data["output_files"].append(output_count)
     time_series_data["pp_output_files"].append(pp_output_count)
 
-    # Calculate differences since last time step
     output_diff = calculate_differences(time_series_data["output_files"])
     pp_output_diff = calculate_differences(time_series_data["pp_output_files"])
 
-    # Create the time series plot showing the difference since the last time step
     time_series_figure = {
         "data": [
             {
@@ -260,4 +250,4 @@ def update_dashboard(n):
 
 
 if __name__ == "__main__":
-    app.run_server(host="0.0.0.0", port=8050, debug=True)
+    app.run(host="0.0.0.0", port=8050, debug=True)

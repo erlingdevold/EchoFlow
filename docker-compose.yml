@@ -1,12 +1,11 @@
-version: '3'
 services:
   raw:
     build: 
       context: .
       dockerfile: ./raw_consumer/Dockerfile.raw
     volumes:
-      - /data/saas/Nordtind/ES80/ES80-38:/app/input
-      - /data/subzerospace/output:/app/output
+      - ./data/input:/app/input
+      - ./data/raw_consumer:/app/output
       - ./raw_consumer/log:/app/log
     command: /app/entrypoint.sh
     environment:
@@ -20,8 +19,8 @@ services:
       context: .
       dockerfile: ./preprocessing/Dockerfile.preprocessing
     volumes:
-      - /data/subzerospace/output:/app/input
-      - /data/subzerospace/pp_output:/app/output
+      - ./data/raw_consumer:/app/input
+      - ./data/preprocessing:/app/output
       - ./preprocessing/log:/app/log
     command: /app/entrypoint.sh
     environment:
@@ -39,9 +38,7 @@ services:
     ports:
       - "8050:8050"
     volumes:
-      - /data/saas/Nordtind/ES80/ES80-38:/app/input
-      - /data/subzerospace/output:/app/output
-      - /data/subzerospace/pp_output:/app/pp_output
+      - ./data/preprocessing:/app/input
       - ./raw_consumer/log:/app/logs/raw
       - ./preprocessing/log:/app/logs/preprocessing
     environment:
@@ -54,24 +51,28 @@ services:
       - raw
       - preprocessing
 
-  # infer:
-  #   build: 
-  #     context: .
-  #     dockerfile: ./inference/Dockerfile.infer
-  #   volumes:
-  #     - ./preprocessing/output:/app/input
-  #     - ./inference/output:/app/output
-  #     - ./inference/log:/app/log
-  #   command: /app/entrypoint.sh
-  #   environment:
-  #     - INPUT_DIR=/app/input
-  #     - OUTPUT_DIR=/app/output
-  #     - LOG_DIR=/app/log
-  #     - PIPELINE_STAGE=INFER
-  #     - ARCH=vit_small
-  #     - PATCH_SZ=8
-  #     - DOWNSAMPLE_SIZE=5000
-  #   depends_on:
-  #     - preprocessing 
+  infer:
+    build: 
+      context: .
+      dockerfile: ./inference/Dockerfile.infer
+    volumes:
+      - ./data/preprocessing:/app/input
+      - ./data/inference:/app/output
+      - ./inference/log:/app/log
+    command: /app/entrypoint.sh
+    environment:
+      - INPUT_DIR=/app/input
+      - OUTPUT_DIR=/app/output
+      - LOG_DIR=/app/log
+      - PIPELINE_STAGE=INFER
+      - ARCH=vit_tiny
+      - PATCH_SZ=16
+      - DOWNSAMPLE_SIZE=5000
+    depends_on:
+      - preprocessing
+
+volumes:
+  data:
+    driver: local
 
 

@@ -2,8 +2,8 @@
 # DINO Pipeline
 [![DOI](https://zenodo.org/badge/842972791.svg)](https://doi.org/10.5281/zenodo.15126704)
 
-
-This repository contains a pipeline that utilizes DINO (Vision Transformer) for processing and inference tasks. It includes preprocessing and inference components, with Docker support for streamlined execution in isolated environments.
+This repository contains a pipeline for processing Kongsberg EK(S)60 and 80 files into Sv images. 
+It includes preprocessing and inference components, with Docker support for streamlined execution in isolated environments.
 
 ## Features
 
@@ -15,6 +15,9 @@ This repository contains a pipeline that utilizes DINO (Vision Transformer) for 
 
 ```
 .
+├── raw_consumer/                # process raw to xarray
+│   ├── Dockerfile.raw            # Dockerfile for volumetric backscatter computing with pyEcholab
+│   ├── preprocessing.py          # Script for converting raw file to volumetric backscatter cubes
 ├── preprocessing/               # Preprocessing components
 │   ├── Dockerfile.preprocessing  # Dockerfile for preprocessing
 │   ├── preprocessing.py          # Script for preprocessing input data
@@ -22,15 +25,14 @@ This repository contains a pipeline that utilizes DINO (Vision Transformer) for 
 │   ├── Dockerfile.infer          # Dockerfile for inference
 │   ├── attention_inspect.py      # Script for inspecting attention maps
 │   ├── inspect_attention.py      # Main script for running inference and inspection
-│   ├── requirements.txt          # Python dependencies for inference
-│   ├── utils.py                  # Utility functions for inference
+│   ├── requirements.txt          # Python dependencies for inference demo
+│   ├── utils.py                  # Utility functions for inference demo
 │   ├── vision_transformer.py     # DINO Vision Transformer model implementation
 ├── docker-compose.yml            # Docker Compose file to run the entire pipeline
 ├── entrypoint.sh                 # Entrypoint script for Docker container
 ├── infer.py                      # Main script to run inference outside Docker
 ├── run_docker.sh                 # Script to run the pipeline using Docker
-├── watchdog.py                   # Script to monitor the pipeline
-└── .gitignore                    # Git ignore file
+├── watchdog.py                   # Script to watch for changes in the pipeline
 ```
 
 ## Requirements
@@ -128,10 +130,6 @@ If you'd prefer to run the pipeline without Docker, you can follow these steps:
 ## Output
 
 The output of the inference step, including generated attention maps and transformed images, will be saved in the `inference/output/` directory. Each run will create a timestamped subdirectory for organized output management.
-
-## Contributing
-
-Feel free to open issues or submit pull requests if you encounter bugs or have suggestions for improvements.
 
 ## License
 

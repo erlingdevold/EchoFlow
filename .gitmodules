@@ -1,0 +1,4 @@
+[submodule "raw_consumer/pyEcholab"]
+	path = raw_consumer/pyEcholab
+	url = git@github.com:erlingdevold/pyEcholab.git
+	branch = RHT-EK80-Svf

@@ -1,4 +1,4 @@
-# placegholde file
+# placeholder file
 
 
 from pathlib import Path

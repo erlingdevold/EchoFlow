@@ -15,8 +15,8 @@ logging.basicConfig(
     filemode="w",
     format="%(asctime)s - %(message)s",
 )
-import functools
 
+import functools
 
 def log_errors(func):
     @functools.wraps(func)
@@ -46,10 +46,9 @@ def setup_device_and_model(arch='vit_tiny', patch_size=16, pretrained_weights=No
         p.requires_grad = False
 
     if pretrained_weights and os.path.isfile(pretrained_weights):
-        state_dict = torch.load(pretrained_weights, map_location="cpu").get(checkpoint_key, {})
+        state_dict = torch.load(pretrained_weights, map_location="cpu",weights_only=False).get(checkpoint_key, {})
         state_dict = {k.replace("module.", "").replace("backbone.", ""): v for k, v in state_dict.items()}
         model.load_state_dict(state_dict, strict=False)
-        print(f'Pretrained weights loaded from {pretrained_weights}')
     else:
         print(f"Invalid path to pretrained weights: {pretrained_weights}")
     
@@ -68,55 +67,54 @@ def process_image(image_path, image_size=(1000, 1000)):
 def get_attention_maps(model, img_tensor, image_size, patch_size):
     attentions = model.get_last_selfattention(img_tensor)[0, :, 0, 1:]
     nh = attentions.shape[0]
-    print(attentions.shape)
+
     attentions = attentions.reshape(nh, image_size[0]//patch_size, image_size[1]//patch_size)
     attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=patch_size, mode="nearest")[0].cpu().numpy()
     attentions = (attentions - attentions.min()) / (attentions.max() - attentions.min())
     return attentions
 
-def visualize_attention(img, attentions, nh, image_size,output_name='img.png'):
+def visualize_attention(img, attentions, nh, image_size):
     fig, axes = plt.subplots(nh + 1, 1, figsize=(15, 15))
-    print(img.size)
-    axes[0].imshow(np.array(pth_transforms.Resize(image_size)(img)).T, aspect='auto')
+    # Resize the image and convert to numpy array
+    resized_img = pth_transforms.Resize(image_size)(img)
+    img_array = np.array(resized_img)
+    axes[0].imshow(img_array.T,aspect='auto')
+    axes[0].set_title('Original Image')
+    axes[0].axis('off')
+    
+    # Display attention maps
     for i in range(nh):
-        axes[i + 1].imshow(attentions[i].T, cmap='viridis', aspect='auto')
+        axes[i + 1].imshow(attentions[i].T, cmap='viridis',aspect='auto')
         axes[i + 1].set_title(f'Attention Head {i}')
         axes[i + 1].axis('off')
-    # plt.savefig(output_name)
+    
+    plt.tight_layout()
 
 def assert_img_sizes(file,image_size):
     img = Image.open(file)
     array = np.array(img)
+    
     w,h = array.shape
     downsample_w,downsample_h = image_size
     if w > downsample_w:
         w = downsample_w
     if h > downsample_h:
         h = downsample_h
-    
 
     return w + w % 2, h + h%2
 
-def infer_attention_heads(file,out,arch,patch_size,chkp,image_size=(1000,1000),plot=True):
-    image_size = assert_img_sizes(file,image_size) # should downsample or not
+def infer_attention_heads(file,out,arch,patch_size,chkp,image_size=(1000,1000)):
+    image_size = assert_img_sizes(file,image_size)
     device,model = setup_device_and_model(arch=arch,patch_size=patch_size,pretrained_weights=chkp)    
     img_tensor = process_image(file,image_size=image_size)
     attentions = get_attention_maps(model, img_tensor, image_size=image_size, patch_size=patch_size)
-    visualize_attention(Image.open(file), attentions, attentions.shape[0], image_size=image_size,output_name=out)
-    if plot:    
-        plt.savefig(out)
-    else:
-        pass
-        # @save nc
-    
-        
-        
+    visualize_attention(Image.open(file), attentions, attentions.shape[0], image_size=image_size)
+    plt.savefig(out)
 
 def reduce_files_to_diff(inp, out):
     in_files = {f.stem for f in inp.glob("*")}
     out_files = {f.stem for f in out.glob("*")}
     diff = in_files - out_files
-    print(diff)
 
     return filter(lambda x: x.stem in diff, inp.glob("*"))
 
@@ -129,10 +127,10 @@ size = int(os.getenv("DOWNSAMPLE_SIZE", 5000))
 def consume_dir(input_dir: Path, output_dir: Path):
     data = None
     files_to_compute = reduce_files_to_diff(input_dir, output_dir)
-    for folder in files_to_compute: # these are folders now.
+    for folder in files_to_compute: 
         base_out = output_dir / folder.name
         base_out.mkdir(parents=True,exist_ok=True)
-        for file in folder.glob("*.jpg"):
+        for file in folder.glob("*.png"):
             infer_attention_heads(file,base_out / file.name, arch, patch_size,"checkpoint.pth",image_size=(size,size))
 
     if not data:

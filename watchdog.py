@@ -11,7 +11,6 @@ import logging
 log = os.getenv("LOG_DIR", "/data/log")
 input_dir = os.getenv("INPUT_DIR", "/data/sonar")
 output_dir = os.getenv("OUTPUT_DIR", "/data/processed")
-PIPELINE_STAGE = os.getenv("PIPELINE_STAGE", None)
 
 logging.basicConfig(
     filename=Path(log) / "raw.log",
@@ -22,26 +21,6 @@ logging.basicConfig(
 
 
 from main import consume_dir
-
-# match PIPELINE_STAGE:
-#     case "RAW":
-#         from raw import consume_dir
-#     case "INFER":
-#         from infer import consume_dir
-#     case "SEGMENTATION":
-#         from segmentation import consume_dir
-#     case _:
-#         raise ValueError(f"Invalid pipeline stage {PIPELINE_STAGE}")
-
-# from infer import consume_dir
-
-# pipeline_functions = {
-#     "RAW": consume_dir,
-#     "INFER": consume_dir,
-#     "SEGMENTATION": consume_dir,
-# }
-# pipeline_function = pipeline_functions[PIPELINE_STAGE]
-
 
 class MyHandler(FileSystemEventHandler):
     def on_modified(self, event):
