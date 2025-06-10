@@ -5,3 +5,4 @@ data/monitor
 log
 
 .python_version*.raw
+inference/*.pth
