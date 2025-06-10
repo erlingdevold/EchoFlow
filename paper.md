@@ -14,7 +14,7 @@ affiliations:
   - name: SINTEF AS, Trondheim, Norway
     index: 1
 date: 2025-06-10
-doi: 10.5281/zenodo.XXXXXXX  # ← replace with real DOI after Zenodo deposit
+doi: 10.5281/zenodo.15634054
 ---
 
 
