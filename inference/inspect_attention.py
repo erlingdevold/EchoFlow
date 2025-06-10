@@ -124,19 +124,21 @@ def infer_attention_heads(file,out,arch,patch_size,chkp,image_size=(1000,1000)):
     visualize_attention(Image.open(file), attentions, attentions.shape[0], image_size=image_size)
     plt.savefig(out)
 
-def reduce_files_to_diff(inp, out):
-    in_files = {f.stem for f in inp.glob("*")}
-    out_files = {f.stem for f in out.glob("*")}
-    # check outfolders for notempty.
-    for file in out_files:
-        if not any(out.glob(f"{file}/*.png")):
-            out_files.remove(file)
-    
-    diff = in_files - out_files
+def reduce_files_to_diff(inp: Path, out: Path):
+    """
+    Return a list of sub-folders in *inp* that still need processing.
 
+    * We treat each first-level folder (stem) in *inp* as one logical sample.
+    * A folder counts as *already processed* if a corresponding folder
+      exists in *out* **and** contains at least one PNG file.
+    """
+    in_stems = {p.stem for p in inp.glob("*") if p.is_dir()}
+    processed_stems = {
+        p.stem for p in out.glob("*") if p.is_dir() and any(p.glob("*.png"))
+    }
 
-
-    return filter(lambda x: x.stem in diff, inp.glob("*"))
+    pending_stems = in_stems - processed_stems
+    return [p for p in inp.glob("*") if p.stem in pending_stems]
 
 arch = 'vit_small'
 patch_size = int(os.getenv("PATCH_SZ",8))
