@@ -8,7 +8,11 @@ jobs:
 
     steps:
       # 1.  Grab the code
-      - uses: actions/checkout@v4
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'   # pull submodules
+          fetch-depth: 0            # full history so submodule SHAs resolve
 
       # 2.  Build all Docker images to make sure the Dockerfiles are valid
       - name: Build Docker images
