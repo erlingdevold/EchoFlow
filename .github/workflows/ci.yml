@@ -76,28 +76,41 @@ jobs:
       #--------------------------------------------------------------
       # 6. Append a small inline gallery to the workflow summary
       #--------------------------------------------------------------
-      - name: Embed PNG preview in summary
-        if: always()
-        run: |
-          shopt -s globstar nullglob
-          echo "## Preprocessing sample" >> "$GITHUB_STEP_SUMMARY"
-          count=0
-          for img in data/preprocessing/**/*.jpg; do
-            b64=$(base64 -w 0 "$img")
-            echo "<img src=\"data:image/jpg;base64,$b64\" height=\"150\"/>" \
-              >> "$GITHUB_STEP_SUMMARY"
-            ((count++ == 4)) && break
-          done
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "## Inference sample" >> "$GITHUB_STEP_SUMMARY"
-          count=0
-          for img in data/inference/**/*.png; do
-            b64=$(base64 -w 0 "$img")
+    - name: Embed PNG preview in summary
+      if: always()
+      shell: bash
+      run: |
+        set +e                       # don't exit on first non-zero
+        shopt -s globstar nullglob   # enable ** and ignore empty globs
+
+        echo "## Preprocessing sample" >> "$GITHUB_STEP_SUMMARY"
+        imgs=(data/preprocessing/**/*.png data/preprocessing/**/*.jpg)
+        if [ ${#imgs[@]} -eq 0 ]; then
+          echo "_No images produced in preprocessing._" >> "$GITHUB_STEP_SUMMARY"
+        else
+          cnt=0
+          for img in "${imgs[@]}"; do
+            b64=$(base64 -w0 "$img")
             echo "<img src=\"data:image/png;base64,$b64\" height=\"150\"/>" \
               >> "$GITHUB_STEP_SUMMARY"
-            ((count++ == 4)) && break
+            ((cnt++ == 4)) && break
           done
+        fi
 
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "## Inference sample" >> "$GITHUB_STEP_SUMMARY"
+        imgs=(data/inference/**/*.png data/inference/**/*.jpg)
+        if [ ${#imgs[@]} -eq 0 ]; then
+          echo "_No images produced in inference._" >> "$GITHUB_STEP_SUMMARY"
+        else
+          cnt=0
+          for img in "${imgs[@]}"; do
+            b64=$(base64 -w0 "$img")
+            echo "<img src=\"data:image/png;base64,$b64\" height=\"150\"/>" \
+              >> "$GITHUB_STEP_SUMMARY"
+            ((cnt++ == 4)) && break
+          done
+        fi
       #--------------------------------------------------------------
       # 7. Tear down containers & volumes (always runs)
       #--------------------------------------------------------------
