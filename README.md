@@ -1,7 +1,8 @@
-# DINO Pipeline
+# Echoflow
 [![CI](https://github.com/erlingdevold/EchoFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/erlingdevold/EchoFlow/actions)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15634054.svg)](https://doi.org/10.5281/zenodo.15634054)
 
+>Do you have Terabytes of unprocessed Sonar data? Use this for easy viewing and inference!
 
 This repository contains a pipeline for processing Kongsberg EK(S)60 and 80 files into Sv images. 
 It includes preprocessing and inference components, with Docker support for streamlined execution in isolated environments.
