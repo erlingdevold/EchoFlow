@@ -3,3 +3,4 @@ matplotlib
 scikit-learn
 xarray
 netcdf4
+typing-extensions
