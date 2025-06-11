@@ -49,6 +49,7 @@ Alternatively, you can run the pipeline outside of Docker by installing the requ
 aws s3 cp --no-sign-request \
   "s3://noaa-wcsd-pds/data/raw/Bell_M._Shimada/SH2306/EK80/Hake-D20230811-T165727.raw" \
   data/input
+touch ./inference/checkpoint.pth
 git submodule sync --recursive
 ```
 ## Setup
@@ -67,49 +68,10 @@ git submodule sync --recursive
 
 2. **Running the Preprocessing**:
 
-   Once the containers are running, you can trigger the preprocessing step by executing:
+   Once the containers are running, the pipeline is started, given that you populated input.
 
-   ```bash
-   docker compose exec preprocessing python preprocessing/preprocessing.py
-   ```
+This quickstart shows how easy the pipeline is setup in order to 
 
-3. **Running the Inference**:
-
-   After preprocessing, you can run inference by executing:
-
-   ```bash
-   docker compose exec infer python inference/inspect_attention.py
-   ```
-
-   This script performs inference using the DINO Vision Transformer model and generates visualizations of attention maps.
-
-### Running Without Docker
-
-If you'd prefer to run the pipeline without Docker, you can follow these steps:
-
-1. **Install Dependencies**:
-
-   Install the required dependencies for inference:
-
-   ```bash
-   pip install -r inference/requirements.txt
-   ```
-
-2. **Run Preprocessing**:
-
-   Execute the preprocessing script:
-
-   ```bash
-   python preprocessing/preprocessing.py
-   ```
-
-3. **Run Inference**:
-
-   Execute the inference script:
-
-   ```bash
-   python inference/inspect_attention.py
-   ```
 ## ENV variables
 
 	1.	watchdog.py:
@@ -139,9 +101,6 @@ If you'd prefer to run the pipeline without Docker, you can follow these steps:
 ## Output
 
 The output of the inference step, including generated attention maps and transformed images, will be saved in the `inference/output/` directory. Each run will create a timestamped subdirectory for organized output management.
-
-Example output path:  
-`data/inference/Haul_42/0001_38kHz.png`
 
 ## License
 
