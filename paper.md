@@ -15,7 +15,7 @@ affiliations:
     index: 1
 date: 2025-06-10
 doi: 10.5281/zenodo.15634054
-bibliography: bibliography.bib
+bibliography: paper.bib
 ---
 
 # Summary
@@ -30,17 +30,20 @@ Each stage is encapsulated in its own Docker image and orchestrated with Docker 
 
 # Statement of need
 
-Marine-acoustics laboratories collect **terabytes** of multi-frequency sonar per survey but lack an open-source tool-chain that
+Marine-acoustics research collect **terabytes** of multi-frequency sonar per survey but lack an open-source tool-chain that
 
 * converts heterogeneous raw formats,  
 * scales from a laptop to an HPC cluster, and  
 * integrates state-of-the-art computer-vision models.
 
-Previous work [@lee2024echopype][@sullivan2018pyecholab] addresses the first bullet; EchoFlow fills the remaining gap by chaining **conversion → pre-processing → self-supervised inference** in a single, reproducible workflow. This lowers the barrier for fisheries scientists, marine-robotics engineers and citizen scientists who want modern ML without bespoke pipelines. This pipeline also serves as a foundation for new modern framework incorporated into this science.
+Previous work [@lee2024echopype][@sullivan2018pyecholab] addresses the first bullet; EchoFlow fills the remaining gap by chaining **conversion → pre-processing → self-supervised inference** in a single, reproducible workflow. 
+This lowers the barrier for fisheries scientists, marine-robotics engineers and citizen scientists who want modern ML without bespoke pipelines. This pipeline also serves as a foundation for new modern framework incorporated into this science.
 
 # Implementation and architecture
 
-Each stage lives in its own Docker image and communicates through bind-mounted volumes (`./data/`). A Python watchdog triggers the pipeline when new `.raw` files arrive, and pre-trained DINO weights are cached on first use. Images are multi-platform (`linux/amd64`, `linux/arm64`).
+Each stage lives in its own Docker image and communicates through bind-mounted volumes (`./data/`). 
+A Python watchdog triggers the pipeline when new `.raw` files arrive, and pre-trained DINO weights are cached on first use. 
+Images are multi-platform (`linux/amd64`, `linux/arm64`).
 
 # Illustrative example
 
