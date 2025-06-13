@@ -1,11 +1,12 @@
 ---
-title: "EchoFlow – End-to-end self-supervised sonar-image pipeline"
+title: "EchoFlow: End-to-end self-supervised sonar-image pipeline"
 tags:
   - computer-vision
   - self-supervised-learning
   - vision-transformer
   - marine-robotics
   - fisheries-acoustics
+  - containerization
 authors:
   - name: Erling Devold
     orcid: 0009-0000-0949-5992
@@ -13,7 +14,7 @@ authors:
 affiliations:
   - name: SINTEF AS, Trondheim, Norway
     index: 1
-date: 2025-06-10
+date: 13 June 2025
 doi: 10.5281/zenodo.15634054
 bibliography: paper.bib
 ---
@@ -60,3 +61,5 @@ docker compose up --build raw preprocessing infer
 xdg-open data/preprocessing/Hake-D20230811-T165727/38000_debug.jpg
 xdg-open data/inference/Hake-D20230811-T165727/70000.png
 ```
+
+# References
