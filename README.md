@@ -52,6 +52,7 @@ aws s3 cp --no-sign-request \
   "s3://noaa-wcsd-pds/data/raw/Bell_M._Shimada/SH2306/EK80/Hake-D20230811-T165727.raw" \
   data/input
 touch ./inference/checkpoint.pth
+
 git submodule sync --recursive
 ```
 ## Setup
