@@ -37,7 +37,7 @@ Marine-acoustics research collect **terabytes** of multi-frequency sonar per sur
 * scales from a laptop to an HPC cluster, and  
 * integrates state-of-the-art computer-vision models.
 
-Previous work [@lee2024echopype][@sullivan2018pyecholab] addresses the first bullet; EchoFlow fills the remaining gap by chaining **conversion → pre-processing → self-supervised inference** in a single, reproducible workflow. 
+Previous work [@lee2024echopype;@sullivan2018pyecholab] addresses the first bullet; EchoFlow fills the remaining gap by chaining **conversion → pre-processing → self-supervised inference** in a single, reproducible workflow. 
 This lowers the barrier for fisheries scientists, marine-robotics engineers and citizen scientists who want modern ML without bespoke pipelines. This pipeline also serves as a foundation for new modern framework incorporated into this science.
 
 # Implementation and architecture
