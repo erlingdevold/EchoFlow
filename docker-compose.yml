@@ -32,13 +32,15 @@ services:
       - raw
 
   monitor:
-    build: 
+    build:
       context: ./monitor
       dockerfile: Dockerfile.monitor
     ports:
       - "8050:8050"
     volumes:
-      - ./data/preprocessing:/app/input
+      - ./data/input:/app/input
+      - ./data/preprocessing:/app/output
+      - ./data/inference:/app/pp_output
       - ./raw_consumer/log:/app/logs/raw
       - ./preprocessing/log:/app/logs/preprocessing
     environment:

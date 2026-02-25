@@ -3,15 +3,19 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15634054.svg)](https://doi.org/10.5281/zenodo.15634054)
 [![status](https://joss.theoj.org/papers/5c9046c3818c08881b51acf6be8d79dc/status.svg)](https://joss.theoj.org/papers/5c9046c3818c08881b51acf6be8d79dc)
 
->Do you have Terabytes of unprocessed Sonar data? Use this for easy viewing and inference!
+> Do you have Terabytes of unprocessed Sonar data? Use this for easy viewing and inference!
 
-This repository contains a pipeline for processing Kongsberg EK(S)60 and 80 files into Sv images. 
-It includes preprocessing and inference components, with Docker support for streamlined execution in isolated environments.
+EchoFlow is a three-stage containerised pipeline that converts raw Kongsberg EK80 echosounder files into echograms and DINO ViT attention maps.
+
+**Stages:**
+1. **Conversion** (`raw`) — decodes `.raw` pings to volume-backscattering strength NetCDF files via pyEcholab.
+2. **Pre-processing** (`preprocessing`) — contrast-stretches and tiles echograms as PNGs.
+3. **Inference** (`infer`) — runs a DINO Vision Transformer to produce per-patch attention heat-maps.
 
 ## Features
 
 - **Preprocessing**: Prepares the data for inference.
-- **Inference**: Utilizes DINO for visual inference and attention inspection.
+- **Inference**: Utilises DINO for visual inference and attention inspection.
 - **Docker Support**: Run the pipeline in an isolated Docker environment for consistency and ease of use.
 
 ## Repository Structure
@@ -38,76 +42,123 @@ It includes preprocessing and inference components, with Docker support for stre
 ├── watchdog.py                   # Script to watch for changes in the pipeline
 ```
 
-## Requirements
+## Installation
 
-- Docker
-- Docker Compose
-- AWS CLI
+### Prerequisites
+
+- Docker ≥ 24
+- Docker Compose v2 (`docker compose` — note: no hyphen)
 - Git
+- AWS CLI (for downloading the sample input file)
 
-Alternatively, you can run the pipeline outside of Docker by installing the required Python packages from respective modules `requirements.txt`.
+### Clone with submodules
+
+```bash
+git clone --recurse-submodules https://github.com/erlingdevold/EchoFlow.git
+```
+
+If you have already cloned without submodules:
+
+```bash
+git submodule update --init --recursive
+```
+
+### Without Docker
+
+Each stage has its own `requirements.txt`. Install the dependencies for the stages you need:
+
+```bash
+pip install -r raw_consumer/requirements.txt
+pip install -r preprocessing/requirements.txt
+pip install -r inference/requirements.txt
+```
+
 ## Populate input
+
+The command below fetches a publicly available NOAA EK80 test file (~105 MB) into `data/input/` and initialises git submodules before building the Docker images.
+
 ```bash
 aws s3 cp --no-sign-request \
   "s3://noaa-wcsd-pds/data/raw/Bell_M._Shimada/SH2306/EK80/Hake-D20230811-T165727.raw" \
-  data/input
+  data/input/
+
 touch ./inference/checkpoint.pth
 
 git submodule sync --recursive
 ```
+
 ## Setup
 
 ### Running with Docker
 
-1. **Build and Start the Containers**:
-   
-   First, ensure you have Docker and Docker Compose installed. Then run the following command to start the pipeline:
+#### Run the full pipeline
 
-   ```bash
-   docker compose up --build
-   ```
+```bash
+docker compose up --build
+```
 
-   This will build the Docker containers for preprocessing and inference and start the pipeline.
+This builds and starts all three stages (Conversion, Pre-processing, Inference) plus the progress monitor.
 
-2. **Running the Preprocessing**:
+#### Run individual stages
 
-   Once the containers are running, the pipeline is started, given that you populated input.
+You can also run each stage independently:
 
-This quickstart shows how easy the pipeline is setup in order to 
+| Stage | Command |
+|-------|---------|
+| Stage 1 — Conversion | `docker compose up --build raw` |
+| Stage 2 — Pre-processing | `docker compose up --build preprocessing` |
+| Stage 3 — Inference | `docker compose up --build infer` |
+| All stages (no monitor) | `docker compose up --build raw preprocessing infer` |
+
+Each stage reads from and writes to bind-mounted directories under `./data/`, so stages can be run in sequence without rebuilding upstream containers.
+
+### Monitor dashboard
+
+Once the pipeline is running, a progress monitor is available at **http://localhost:8050**.
+
+The dashboard is a **pipeline progress monitor** — it tracks file counts and tail-logs for each stage. It is not an inference viewer. Actual outputs are written to:
+
+- `data/raw_consumer/` — converted NetCDF files (Stage 1 output)
+- `data/preprocessing/` — echogram PNGs (Stage 2 output)
+- `data/inference/` — attention map PNGs (Stage 3 output)
+
+## Running on HPC / shared compute
+
+EchoFlow uses process pools within each stage to parallelise work across `.raw` files. Because `.raw` files are large XML datagrams, file I/O is the primary bottleneck; adding CPU cores within a node yields proportional throughput gains.
 
 ## ENV variables
 
-	1.	watchdog.py:
-	•	LOG_DIR (default: "/data/log")
-	•	INPUT_DIR (default: "/data/sonar")
-	•	OUTPUT_DIR (default: "/data/processed")
-	2.	inspect_attention.py:
-	•	INPUT_DIR (default: "/data/test_imgs")
-	•	OUTPUT_DIR (default: "/data/inference")
-	•	LOG_DIR (default: ".")
-	•	PATCH_SZ (default: 8)
-	•	ARCH (default: 'vit_small')
-	•	DOWNSAMPLE_SIZE (default: 5000)
-	3.	preprocessing.py:
-	•	INPUT_DIR (default: "/data/processed")
-	•	OUTPUT_DIR (default: "/data/test_imgs")
-	•	LOG_DIR (default: ".")
-	4.	raw.py:
-	•	INPUT_DIR (default: "/data/sonar")
-	•	OUTPUT_DIR (default: "/data/processed")
-	•	LOG_DIR (default: "log")
-	5.	segmentation.py:
-	•	INPUT_DIR (default: "/data/sonar")
-	•	OUTPUT_DIR (default: "/data/processed")
-	•	LOG_DIR (default: "/data/logs")
+1. `watchdog.py`:
+   - `LOG_DIR` (default: `"/data/log"`)
+   - `INPUT_DIR` (default: `"/data/sonar"`)
+   - `OUTPUT_DIR` (default: `"/data/processed"`)
+2. `inspect_attention.py`:
+   - `INPUT_DIR` (default: `"/data/test_imgs"`)
+   - `OUTPUT_DIR` (default: `"/data/inference"`)
+   - `LOG_DIR` (default: `"."`)
+   - `PATCH_SZ` (default: `8`)
+   - `ARCH` (default: `'vit_small'`)
+   - `DOWNSAMPLE_SIZE` (default: `5000`)
+3. `preprocessing.py`:
+   - `INPUT_DIR` (default: `"/data/processed"`)
+   - `OUTPUT_DIR` (default: `"/data/test_imgs"`)
+   - `LOG_DIR` (default: `"."`)
+4. `raw.py`:
+   - `INPUT_DIR` (default: `"/data/sonar"`)
+   - `OUTPUT_DIR` (default: `"/data/processed"`)
+   - `LOG_DIR` (default: `"log"`)
 
 ## Output
 
-The output of the inference step, including generated attention maps and transformed images, will be saved in the `inference/output/` directory. Each run will create a timestamped subdirectory for organized output management.
+The output of the inference step, including generated attention maps and transformed images, will be saved in `data/inference/`. Each run creates a subdirectory named after the input file for organised output management.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting bugs, suggesting features, and submitting pull requests.
 
 ## License
 
-Licensed under the MIT License – see [LICENSE](LICENSE) for details.
+Licensed under the MIT License — see [LICENSE](LICENSE) for details.
 
 ## Acknowledgements
 
