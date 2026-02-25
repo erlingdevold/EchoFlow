@@ -122,9 +122,9 @@ The dashboard is a **pipeline progress monitor** — it tracks file counts and t
 - `data/preprocessing/` — echogram PNGs (Stage 2 output)
 - `data/inference/` — attention map PNGs (Stage 3 output)
 
-## Running on HPC / shared compute
+## Performance / parallelism
 
-EchoFlow uses process pools within each stage to parallelise work across `.raw` files. Because `.raw` files are large XML datagrams, file I/O is the primary bottleneck; adding CPU cores within a node yields proportional throughput gains.
+EchoFlow uses process pools within each stage to parallelise work across `.raw` files. Because `.raw` files are large XML datagrams, file I/O is the primary bottleneck; adding CPU cores within a node yields proportional throughput gains. This is the extent of the "HPC" scaling — parallelism is intra-node only and there is no built-in cluster or scheduler integration.
 
 ## ENV variables
 
