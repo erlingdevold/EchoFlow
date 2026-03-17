@@ -3,6 +3,28 @@ name: compose-ci
 on: [push, pull_request]
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install pytest xarray netCDF4 numpy matplotlib scikit-learn pillow torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+      # Create a dummy checkpoint so setup_device_and_model hits the except
+      # branch and downloads DINO weights from Facebook's hub instead.
+      - name: Create dummy checkpoint for DINO hub fallback
+        run: touch checkpoint.pth
+
+      - name: Run tests
+        run: pytest tests/ -v
+
   pipeline:
     runs-on: ubuntu-latest
 

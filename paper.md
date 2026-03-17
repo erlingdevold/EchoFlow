@@ -42,7 +42,7 @@ Marine-acoustics researchers collect **terabytes** of multi-frequency sonar data
 Today the typical workflow relies on ad-hoc scripts combining PyEcholab or Echopype for format conversion, followed by manual preprocessing and separate ML tooling—or on proprietary software such as Echoview.
 No single open-source pipeline bridges raw data and ML-ready outputs.
 
-Previous work [@lee2024echopype][@sullivan2018pyecholab] addresses the first bullet; EchoFlow fills the remaining gap by chaining **conversion → pre-processing → self-supervised inference** in a single, reproducible workflow.
+Previous work [@lee2024echopype; @sullivan2018pyecholab] addresses the first bullet; EchoFlow fills the remaining gap by chaining **conversion → pre-processing → self-supervised inference** in a single, reproducible workflow.
 This lowers the barrier for fisheries scientists, marine-robotics engineers, and citizen scientists who want modern ML without bespoke pipelines. The containerised design also facilitates deployment on shared compute environments via tools such as Singularity/Apptainer. This pipeline also serves as a foundation for incorporating modern frameworks into marine science.
 
 # Implementation and architecture

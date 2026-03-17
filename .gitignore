@@ -2,7 +2,14 @@ data/input
 data/preprocessing
 data/inference
 data/monitor
+data/benchmark/
+data/raw_consumer
 log
 
-.python_version*.raw
-inference/*.pth
+.DS_Store
+site/
+*.pth
+test_sample_debug.jpg
+docs/superpowers/
+__pycache__/
+.ruff_cache/

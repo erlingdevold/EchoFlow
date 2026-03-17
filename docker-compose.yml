@@ -13,7 +13,8 @@ services:
       - OUTPUT_DIR=/app/output
       - LOG_DIR=/app/log
       - PIPELINE_STAGE=RAW
-      - MAX_WORKERS=  # defaults to CPU count; set to limit parallelism
+      # MAX_WORKERS defaults to CPU count; uncomment to limit parallelism
+      # - MAX_WORKERS=4
 
   preprocessing:
     build: 
@@ -30,7 +31,8 @@ services:
       - LOG_DIR=/app/log
       - PIPELINE_STAGE=PRE
       - KEEP_INTERMEDIATES=true  # Set to "false" to delete .nc files after processing
-      - MAX_WORKERS=  # defaults to CPU count; set to limit parallelism
+      # MAX_WORKERS defaults to CPU count; uncomment to limit parallelism
+      # - MAX_WORKERS=4
     depends_on:
       - raw
 
@@ -74,7 +76,8 @@ services:
       - PATCH_SZ=16
       - DOWNSAMPLE_SIZE=5000
       - BATCH_SIZE=4  # Number of images per GPU forward pass; tune based on VRAM
-      - DEVICE=  # auto-detects GPU; set to "cpu" to force CPU inference
+      # DEVICE auto-detects GPU; uncomment to force CPU inference
+      # - DEVICE=cpu
     # Uncomment to enable GPU passthrough:
     # deploy:
     #   resources:
