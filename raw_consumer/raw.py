@@ -3,8 +3,7 @@ import xarray as xr
 import os
 import logging
 import functools
-from echolab2.instruments import EK80, EK60
-import numpy as np
+from echolab2.instruments import EK80
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 # Directory and logging setup
@@ -15,7 +14,7 @@ log = os.getenv("LOG_DIR", "log")
 logging.basicConfig(
     filename=Path(log) / "raw.log",
     level=logging.DEBUG,
-    filemode="w",
+    filemode="a",
     format="%(asctime)s - %(message)s",
 )
 
@@ -147,7 +146,9 @@ def process_file(file: Path, output_dir: Path):
         logging.error(f"Error processing {file}: {e}")
 
 
-def consume_dir(input_dir: Path, output_dir: Path, max_workers=12):
+def consume_dir(input_dir: Path, output_dir: Path, max_workers=None):
+    if max_workers is None:
+        max_workers = int(os.getenv("MAX_WORKERS", os.cpu_count() or 4))
     files_to_compute = list(reduce_files_to_diff(input_dir, output_dir))
 
     logging.info(f"Starting to process {len(files_to_compute)} files in parallel.")
@@ -166,9 +167,8 @@ def consume_dir(input_dir: Path, output_dir: Path, max_workers=12):
             except Exception as e:
                 logging.error(f"Error processing file {file}: {e}")
 
-
     logging.info("Finished processing files in parallel.")
 
 
 if __name__ == "__main__":
-    consume_dir(Path(input_dir), Path(output_dir), max_workers=4)
+    consume_dir(Path(input_dir), Path(output_dir))

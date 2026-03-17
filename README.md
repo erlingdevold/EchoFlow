@@ -124,29 +124,38 @@ The dashboard is a **pipeline progress monitor** — it tracks file counts and t
 
 ## Performance / parallelism
 
-EchoFlow uses process pools within each stage to parallelise work across `.raw` files. Because `.raw` files are large XML datagrams, file I/O is the primary bottleneck; adding CPU cores within a node yields proportional throughput gains. This is the extent of the "HPC" scaling — parallelism is intra-node only and there is no built-in cluster or scheduler integration.
+Stages 1 (conversion) and 2 (pre-processing) use process pools to parallelise work across files — controlled by the `MAX_WORKERS` env var (defaults to CPU count). Stage 3 (inference) uses batched GPU inference with a configurable `BATCH_SIZE` (default 4) and auto-detects CUDA when available. Because `.raw` files are large XML datagrams, file I/O is the primary bottleneck for stages 1–2; adding CPU cores within a node yields proportional throughput gains. Parallelism is intra-node only and there is no built-in cluster or scheduler integration.
 
 ## ENV variables
 
-1. `watchdog.py`:
-   - `LOG_DIR` (default: `"/data/log"`)
-   - `INPUT_DIR` (default: `"/data/sonar"`)
-   - `OUTPUT_DIR` (default: `"/data/processed"`)
-2. `inspect_attention.py`:
-   - `INPUT_DIR` (default: `"/data/test_imgs"`)
-   - `OUTPUT_DIR` (default: `"/data/inference"`)
-   - `LOG_DIR` (default: `"."`)
-   - `PATCH_SZ` (default: `8`)
-   - `ARCH` (default: `'vit_small'`)
-   - `DOWNSAMPLE_SIZE` (default: `5000`)
-3. `preprocessing.py`:
-   - `INPUT_DIR` (default: `"/data/processed"`)
-   - `OUTPUT_DIR` (default: `"/data/test_imgs"`)
-   - `LOG_DIR` (default: `"."`)
-4. `raw.py`:
-   - `INPUT_DIR` (default: `"/data/sonar"`)
-   - `OUTPUT_DIR` (default: `"/data/processed"`)
-   - `LOG_DIR` (default: `"log"`)
+### Global
+- `MAX_WORKERS` — max parallel workers for stages 1–2 (default: CPU count)
+
+### `watchdog.py`
+- `LOG_DIR` (default: `"/data/log"`)
+- `INPUT_DIR` (default: `"/data/sonar"`)
+- `OUTPUT_DIR` (default: `"/data/processed"`)
+
+### `raw.py` (Stage 1)
+- `INPUT_DIR` (default: `"/data/sonar"`)
+- `OUTPUT_DIR` (default: `"/data/processed"`)
+- `LOG_DIR` (default: `"log"`)
+
+### `preprocessing.py` (Stage 2)
+- `INPUT_DIR` (default: `"/data/processed"`)
+- `OUTPUT_DIR` (default: `"/data/test_imgs"`)
+- `LOG_DIR` (default: `"."`)
+- `KEEP_INTERMEDIATES` — preserve `.nc` files after processing (default: `"true"`)
+
+### `inspect_attention.py` (Stage 3)
+- `INPUT_DIR` (default: `"/data/test_imgs"`)
+- `OUTPUT_DIR` (default: `"/data/inference"`)
+- `LOG_DIR` (default: `"."`)
+- `PATCH_SZ` (default: `8`)
+- `ARCH` (default: `'vit_small'`)
+- `DOWNSAMPLE_SIZE` (default: `5000`)
+- `BATCH_SIZE` — images per GPU forward pass (default: `4`)
+- `DEVICE` — `"cuda"`, `"cpu"`, or auto-detect (default: auto)
 
 ## Output
 

@@ -80,7 +80,7 @@ nbclient==0.10.0
 nbconvert==7.16.3
 nbformat==5.10.4
 nest-asyncio==1.6.0
-netCDF4==1.6.5
+netCDF4==1.7.4
 notebook==7.1.2
 notebook_shim==0.2.4
 numcodecs==0.12.1

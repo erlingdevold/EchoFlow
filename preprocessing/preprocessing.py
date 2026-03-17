@@ -8,12 +8,13 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import matplotlib.colors as clr
 import logging
-import json
+import gc
 
 # Set up environment variables
 input_dir = os.getenv("INPUT_DIR", "/data/processed")
 output_dir = os.getenv("OUTPUT_DIR", "/data/test_imgs")
 log_path = os.getenv("LOG_DIR", ".")
+keep_intermediates = os.getenv("KEEP_INTERMEDIATES", "true").lower() == "true"
 
 # Set up logging configuration
 log_file = os.path.join(log_path, "pipeline.log")
@@ -28,8 +29,10 @@ log = logging.getLogger()
 
 def reduce_files_to_diff(inp, out):
     in_files = {
-        f.stem for f in inp.glob("*.nc")
-        if not (f.with_suffix(".processed")).exists() and not (f.with_suffix(".failed")).exists()
+        f.stem
+        for f in inp.glob("*.nc")
+        if not (f.with_suffix(".processed")).exists()
+        and not (f.with_suffix(".failed")).exists()
     }
     out_files = {f.stem for f in out.glob("*")}
     diff = in_files - out_files
@@ -37,10 +40,9 @@ def reduce_files_to_diff(inp, out):
     return filter(lambda x: x.stem in diff, inp.glob("*.nc"))
 
 
-
 # Process the seafloor data
 def process_seafloor(ds: xr.DataArray, depth0=25, backstep=5):
-    ds.attrs["tag"] = f"bd2-d%i-bs%i" % (depth0, backstep)
+    ds.attrs["tag"] = "bd2-d%i-bs%i" % (depth0, backstep)
     ds = ds.where(ds.depth >= depth0, drop=True)
     max_depth = ds.idxmax("depth").compute()
     bottom_median = max_depth.median()
@@ -79,17 +81,25 @@ def sv_to_jpg(file, vmin=-80, vmax=-30, estimate_bot=False):
     for freq in ds.frequency:
         freq_data = ds.Sv.sel(frequency=freq).dropna(dim="depth")
         freq_data = 10 * np.log10(freq_data)
+        mask = None
 
         if freq_data.size == 0:
-            log.warning(f"No valid Sv data for frequency {freq.data} in file {file.stem}. Skipping.")
+            log.warning(
+                f"No valid Sv data for frequency {freq.data} in file {file.stem}. Skipping."
+            )
             success = False
             continue
 
         if "bottom_depth" in ds:
             offset = 3
-            bottom_depth = ds["bottom_depth"].sel(frequency=freq).dropna(dim="ping_time")
-            freq_data = freq_data.where(freq_data.depth <= bottom_depth + offset, drop=True)
+            bottom_depth = (
+                ds["bottom_depth"].sel(frequency=freq).dropna(dim="ping_time")
+            )
+            freq_data = freq_data.where(
+                freq_data.depth <= bottom_depth + offset, drop=True
+            )
             freq_data = freq_data.where(freq_data.depth >= 25, drop=True)
+            mask = (freq_data.depth <= bottom_depth + offset) & (freq_data.depth >= 25)
         elif estimate_bot:
             debug_path = Path(log_path)
             plt.imshow(freq_data.T, aspect="auto", vmin=-80, vmax=-30)
@@ -99,7 +109,9 @@ def sv_to_jpg(file, vmin=-80, vmax=-30, estimate_bot=False):
             try:
                 freq_data, bottom_depth = process_seafloor(freq_data)
             except ValueError as e:
-                log.error(f"Seafloor processing failed for file {file.stem}, frequency {freq.data}: {e}")
+                log.error(
+                    f"Seafloor processing failed for file {file.stem}, frequency {freq.data}: {e}"
+                )
                 mark_as_failed(file)  # Mark the file as failed
                 return False  # Skip further processing for this file
 
@@ -109,12 +121,14 @@ def sv_to_jpg(file, vmin=-80, vmax=-30, estimate_bot=False):
         sv = np.array(freq_data.data)
 
         if sv.size == 0 or np.isnan(sv).all():
-            log.warning(f"Empty or invalid Sv data for frequency {freq.data} in file {file.stem}. Skipping.")
+            log.warning(
+                f"Empty or invalid Sv data for frequency {freq.data} in file {file.stem}. Skipping."
+            )
             continue
 
         sv_colors = to_colors(sv, vmin, vmax)
 
-        img = Image.fromarray(sv_colors.astype(np.uint8))
+        img = Image.fromarray(sv_colors.T.astype(np.uint8))
         img = img.convert("L")
 
         log.info(f"Saving image for frequency {freq.data} with shape {img.size}")
@@ -126,7 +140,9 @@ def sv_to_jpg(file, vmin=-80, vmax=-30, estimate_bot=False):
         mask_file = save_path / f"{int(freq.data)}_mask.npy"
 
         if img.size[0] == 0 or img.size[1] == 0:
-            log.warning(f"Generated an empty image for frequency {freq.data}. Skipping.")
+            log.warning(
+                f"Generated an empty image for frequency {freq.data}. Skipping."
+            )
             continue
 
         plt.imshow(img, aspect="auto")
@@ -134,14 +150,16 @@ def sv_to_jpg(file, vmin=-80, vmax=-30, estimate_bot=False):
 
         try:
             img.save(img_file)
-            np.save(mask_file, mask)
+            if mask is not None:
+                np.save(mask_file, mask)
 
-            if img_file.exists() and mask_file.exists():
+            if img_file.exists() and (mask is None or mask_file.exists()):
                 success = True
-                mark_as_processed(file)  # Mark the file as processed after successful processing
             else:
                 success = False
-                log.error(f"Failed to save files for frequency {freq.data} in file {file.stem}. Aborting.")
+                log.error(
+                    f"Failed to save files for frequency {freq.data} in file {file.stem}. Aborting."
+                )
                 mark_as_failed(file)  # Mark the file as failed
                 break
 
@@ -154,17 +172,16 @@ def sv_to_jpg(file, vmin=-80, vmax=-30, estimate_bot=False):
     return success
 
 
-
-# Mark file as processed by deleting .nc file and creating a marker
 def mark_as_processed(file: Path):
     try:
-        file.unlink()
-        log.info(f"Deleted file {file}")
+        if not keep_intermediates:
+            file.unlink()
+            log.info(f"Deleted intermediate file {file}")
         marker_file = file.with_suffix(".processed")
         marker_file.touch()
         log.info(f"Created marker file {marker_file}")
     except Exception as e:
-        log.error(f"Error deleting file {file} or creating marker: {e}")
+        log.error(f"Error processing marker for {file}: {e}")
 
 
 # Check if a file is ready to be processed
@@ -191,7 +208,6 @@ def is_file_ready(file: Path, retries=20, wait_time=2) -> bool:
     return False
 
 
-import gc
 # Mark file as failed by creating a .failed file
 def mark_as_failed(file: Path):
     try:
@@ -202,38 +218,35 @@ def mark_as_failed(file: Path):
         log.error(f"Error marking file as failed {file}: {e}")
 
 
-
-import gc
-
 # Process an individual file
 def process_file(file: Path, output_dir: Path):
+    max_attempts = 4
     try:
-        if is_file_ready(file, retries=20, wait_time=2):
+        if not is_file_ready(file, retries=20, wait_time=2):
+            log.error(f"Skipping file {file}: not ready after retries.")
+            mark_as_failed(file)
+            return
+
+        for attempt in range(max_attempts):
             if sv_to_jpg(file, estimate_bot=True):
-                mark_as_processed(file)  # Mark file as processed
-            else:
-                for i in range(3):
-                    if sv_to_jpg(file, estimate_bot=True):
-                        mark_as_processed(file)  # Mark file as processed
-                        break
-                    time.sleep(1)
-                else:
-                    log.error(f"Skipping file {file} after retries.")
-                    mark_as_failed(file)  # Mark file as failed
-        else:
-            log.error(f"Skipping file {file} after retries.")
-            mark_as_failed(file)  # Mark file as failed
+                mark_as_processed(file)
+                return
+            log.warning(f"Attempt {attempt + 1}/{max_attempts} failed for {file}")
+            time.sleep(1)
+
+        log.error(f"Skipping file {file} after {max_attempts} attempts.")
+        mark_as_failed(file)
     except Exception as e:
         logging.error(f"Error processing {file}: {e}")
-        mark_as_failed(file)  # Mark file as failed in case of any exception
+        mark_as_failed(file)
     finally:
-        # Force garbage collection to free memory
         gc.collect()
 
 
-
 # Process all files in a directory
-def consume_dir(input_dir: Path, output_dir: Path, max_workers=12):
+def consume_dir(input_dir: Path, output_dir: Path, max_workers=None):
+    if max_workers is None:
+        max_workers = int(os.getenv("MAX_WORKERS", os.cpu_count() or 4))
     files_to_compute = list(reduce_files_to_diff(input_dir, output_dir))
 
     logging.info(f"Starting to process {len(files_to_compute)} files in parallel.")

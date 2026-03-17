@@ -3,7 +3,6 @@ import time
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import os
-import subprocess
 
 import logging
 
@@ -14,18 +13,21 @@ output_dir = os.getenv("OUTPUT_DIR", "/data/processed")
 
 # Guard against identical input and output paths
 if Path(input_dir).resolve() == Path(output_dir).resolve():
-    logging.error("INPUT_DIR and OUTPUT_DIR must be different to avoid infinite processing loops.")
+    logging.error(
+        "INPUT_DIR and OUTPUT_DIR must be different to avoid infinite processing loops."
+    )
     raise ValueError("INPUT_DIR and OUTPUT_DIR are identical")
 
 logging.basicConfig(
     filename=Path(log) / "raw.log",
     level=logging.DEBUG,
-    filemode="w",
+    filemode="a",
     format="%(asctime)s - %(message)s",
 )
 
 
-from main import consume_dir
+from main import consume_dir  # noqa: E402
+
 
 class MyHandler(FileSystemEventHandler):
     def on_modified(self, event):
