@@ -63,9 +63,15 @@ If you have already cloned without submodules:
 git submodule update --init --recursive
 ```
 
-### Without Docker
+### Without Docker (native install)
 
-Each stage has its own `requirements.txt`. Install the dependencies for the stages you need:
+The raw_consumer stage requires HDF5 and netCDF C libraries:
+
+- **macOS:** `brew install hdf5 netcdf`
+- **Ubuntu/Debian:** `apt-get install libhdf5-dev libnetcdf-dev`
+- **Docker images include these already** — no action needed for containerised use.
+
+Then install Python dependencies for the stages you need:
 
 ```bash
 pip install -r raw_consumer/requirements.txt
@@ -125,6 +131,15 @@ The dashboard is a **pipeline progress monitor** — it tracks file counts and t
 ## Performance / parallelism
 
 Stages 1 (conversion) and 2 (pre-processing) use process pools to parallelise work across files — controlled by the `MAX_WORKERS` env var (defaults to CPU count). Stage 3 (inference) uses batched GPU inference with a configurable `BATCH_SIZE` (default 4) and auto-detects CUDA when available. Because `.raw` files are large XML datagrams, file I/O is the primary bottleneck for stages 1–2; adding CPU cores within a node yields proportional throughput gains. Parallelism is intra-node only and there is no built-in cluster or scheduler integration.
+
+Run `python benchmark.py` to measure throughput on your hardware. Example output:
+
+<!-- Run `python benchmark.py` to regenerate this table -->
+| Stage | Metric | Value |
+|-------|--------|-------|
+| Preprocessing (4 files) | Time | *run benchmark* |
+| Inference batch=1 | Time | *run benchmark* |
+| Inference batch=4 | Time | *run benchmark* |
 
 ## ENV variables
 

@@ -36,7 +36,7 @@ Continuous Integration (CI) ensures that a test file always produces at least on
 Marine-acoustics researchers collect **terabytes** of multi-frequency sonar data per survey but lack an open-source tool-chain that
 
 * converts heterogeneous raw formats,
-* scales from a laptop to HPC machines, and
+* scales from a laptop to multi-core servers, and
 * integrates state-of-the-art computer-vision models.
 
 Today the typical workflow relies on ad-hoc scripts combining PyEcholab or Echopype for format conversion, followed by manual preprocessing and separate ML tooling—or on proprietary software such as Echoview.
@@ -44,6 +44,8 @@ No single open-source pipeline bridges raw data and ML-ready outputs.
 
 Previous work [@lee2024echopype; @sullivan2018pyecholab] addresses the first bullet; EchoFlow fills the remaining gap by chaining **conversion → pre-processing → self-supervised inference** in a single, reproducible workflow.
 This lowers the barrier for fisheries scientists, marine-robotics engineers, and citizen scientists who want modern ML without bespoke pipelines. The containerised design also facilitates deployment on shared compute environments via tools such as Singularity/Apptainer. This pipeline also serves as a foundation for incorporating modern frameworks into marine science.
+
+EchoFlow was developed as part of the research project *Robotics underneath sub-zero waters and outer space* (RCN project 328193), where it is used to process acoustic data from autonomous underwater vehicles for ocean biomass estimation.
 
 # Implementation and architecture
 
@@ -71,6 +73,6 @@ xdg-open data/inference/Hake-D20230811-T165727/70000.png
 
 # Acknowledgements
 
-TODO: Add funding acknowledgement or state "This work received no external financial support."
+This work was supported by the Research Council of Norway under project 328193 (*Robotics underneath sub-zero waters and outer space*, 2022–2025).
 
 # References
