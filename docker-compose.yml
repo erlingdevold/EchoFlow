@@ -74,7 +74,7 @@ services:
       - PIPELINE_STAGE=INFER
       - ARCH=vit_tiny
       - PATCH_SZ=16
-      - DOWNSAMPLE_SIZE=5000
+      - DOWNSAMPLE_SIZE=1000
       - BATCH_SIZE=4  # Number of images per GPU forward pass; tune based on VRAM
       # DEVICE auto-detects GPU; uncomment to force CPU inference
       # - DEVICE=cpu

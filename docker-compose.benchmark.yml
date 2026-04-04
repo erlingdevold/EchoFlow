@@ -1,0 +1,23 @@
+# Override for benchmark runs — remaps volumes and exits after processing.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.benchmark.yml run --rm raw
+services:
+  raw:
+    entrypoint: ["python", "main.py"]
+    volumes:
+      - ./data/benchmark/input:/app/input
+      - ./data/benchmark/raw_consumer:/app/output
+      - ./data/benchmark/log:/app/log
+
+  preprocessing:
+    entrypoint: ["python", "main.py"]
+    volumes:
+      - ./data/benchmark/raw_consumer:/app/input
+      - ./data/benchmark/preprocessing:/app/output
+      - ./data/benchmark/log:/app/log
+
+  infer:
+    entrypoint: ["python", "main.py"]
+    volumes:
+      - ./data/benchmark/preprocessing:/app/input
+      - ./data/benchmark/inference:/app/output
+      - ./data/benchmark/log:/app/log

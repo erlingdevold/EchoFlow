@@ -4,6 +4,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 import xarray as xr
+from PIL import Image
 
 # Override env vars before importing the module
 os.environ.setdefault("LOG_DIR", ".")
@@ -115,7 +116,7 @@ def test_mark_as_processed_deletes_when_disabled(tmp_path):
 
 
 def test_sv_to_jpg_produces_files(synthetic_nc, tmp_path):
-    """sv_to_jpg should produce valid PNG files."""
+    """sv_to_jpg should produce valid PNG files with correct properties."""
     out = tmp_path / "output"
     out.mkdir()
 
@@ -125,6 +126,15 @@ def test_sv_to_jpg_produces_files(synthetic_nc, tmp_path):
     assert success
     pngs = list(out.rglob("*.png"))
     assert len(pngs) > 0
+
+    # Verify output correctness, not just existence
+    for png_path in pngs:
+        img = Image.open(png_path)
+        w, h = img.size
+        assert w > 0 and h > 0, f"Empty image: {png_path}"
+        arr = np.array(img)
+        assert arr.dtype == np.uint8, f"Expected uint8, got {arr.dtype}"
+        assert arr.max() > 0, f"All-black image: {png_path}"
 
 
 def test_mask_computed_with_bottom_depth(synthetic_nc_with_bottom, tmp_path):

@@ -53,6 +53,33 @@ Each stage lives in its own Docker image and communicates through bind-mounted v
 A Python watchdog triggers the pipeline when new `.raw` files arrive, and pre-trained DINO weights are cached on first use. 
 Images are multi-platform (`linux/amd64`, `linux/arm64`).
 
+# Performance
+
+Stages 1–2 (conversion and pre-processing) are CPU- and I/O-bound; their throughput scales near-linearly with `MAX_WORKERS`.
+Stage 3 (inference) is GPU-bound, controlled by `BATCH_SIZE`.
+The included benchmark script (`benchmark.py`) runs the full three-stage pipeline inside Docker on real EK80 data from the NOAA Water-Column Sonar Data archive, varying worker counts from 1 to 8.
+Users can reproduce these numbers with:
+
+```bash
+bash download_bench_data.sh   # 64 files, ~6.4 GB
+docker compose build
+python benchmark.py
+```
+
+Table 1 shows throughput on a 12-core Intel i7-12700 (20 threads, 32 GB RAM, NVIDIA RTX 3090) processing 64 EK80 files (6.7 GB total) from the NOAA WCSD archive.
+Stages 1–2 are CPU-bound and scale near-linearly with `MAX_WORKERS` until I/O saturates.
+Stage 3 (GPU inference at 1000×1000 px, batch size 4) takes 393 s for 320 images on a single RTX 3090.
+At eight workers the full pipeline processes one ~105 MB echogram in approximately 8.7 seconds end-to-end, implying roughly 23 hours per terabyte; in production the stages run concurrently via a filesystem watchdog, so wall-clock time is dominated by the slowest stage.
+
+| Workers | Stage 1 (s) | Stage 2 (s) | Stage 3 (s) | Total (s) | s/file | Speedup |
+|---------|-------------|-------------|-------------|-----------|--------|---------|
+| 1       | 139.6       | 514.0       | 393         | 1046.6    | 16.35  | 1.00x   |
+| 2       | 86.5        | 275.7       | 393         | 755.2     | 11.80  | 1.39x   |
+| 4       | 56.3        | 156.2       | 393         | 605.5     | 9.46   | 1.73x   |
+| 8       | 56.9        | 97.2        | 393         | 547.1     | 8.55   | 1.91x   |
+
+: End-to-end benchmark. Stages 1–2 vary with `MAX_WORKERS`; stage 3 is GPU-bound and constant. \label{tab:benchmark}
+
 # Illustrative example
 
 ```bash

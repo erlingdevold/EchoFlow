@@ -192,7 +192,6 @@ def reduce_files_to_diff(inp: Path, out: Path):
     return [p for p in inp.glob("*") if p.stem in pending_stems]
 
 
-arch = "vit_small"
 patch_size = int(os.getenv("PATCH_SZ", 8))
 arch = os.getenv("ARCH", "vit_small")
 size = int(os.getenv("DOWNSAMPLE_SIZE", 5000))
@@ -225,13 +224,24 @@ def consume_dir(input_dir: Path, output_dir: Path):
     for i in range(0, len(all_files), BATCH_SIZE):
         batch = all_files[i : i + BATCH_SIZE]
         tensors = torch.stack([process_image(f, image_size) for f, _ in batch]).to(
-            DEVICE
+            device
         )
 
-        with torch.no_grad():
-            attn_maps = get_attention_maps(
-                model, tensors, image_size=image_size, patch_size=patch_size
-            )
+        try:
+            with torch.no_grad():
+                attn_maps = get_attention_maps(
+                    model, tensors, image_size=image_size, patch_size=patch_size
+                )
+        except torch.cuda.OutOfMemoryError:
+            logging.warning("CUDA OOM — falling back to CPU for this batch")
+            torch.cuda.empty_cache()
+            model.cpu()
+            device = torch.device("cpu")
+            tensors = tensors.cpu()
+            with torch.no_grad():
+                attn_maps = get_attention_maps(
+                    model, tensors, image_size=image_size, patch_size=patch_size
+                )
 
         # Single-image batch returns a single array, not a list
         if len(batch) == 1:

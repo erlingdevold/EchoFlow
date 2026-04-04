@@ -1,140 +1,247 @@
-# %%
 """
-Benchmark script for EchoFlow pipeline stages.
+EchoFlow full-pipeline benchmark.
 
-Generates a markdown-formatted throughput table for the README.
-Run with: python benchmark.py
+Runs all three stages (raw -> preprocessing -> inference) inside Docker,
+varying MAX_WORKERS to measure throughput and scaling.
 
-Requires a sample .nc file in data/raw_consumer/ and corresponding
-PNG output in data/preprocessing/ for stages 2 and 3.
+Prerequisites:
+    - Docker and docker compose installed
+    - Benchmark data downloaded: bash download_bench_data.sh
+    - Docker images built: docker compose build
+
+Usage:
+    python benchmark.py [--data-dir data/benchmark/input] [--workers 1,2,4,8]
 """
 
 import os
 import platform
+import subprocess
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
-import numpy as np
-import xarray as xr
+COMPOSE_FILES = ["docker-compose.yml", "docker-compose.benchmark.yml"]
 
 
 def get_machine_info():
-    """Print machine specs."""
-    import torch
-
+    """Gather machine specs for the report header."""
     lines = [
         f"- **OS:** {platform.system()} {platform.release()}",
         f"- **CPU:** {platform.processor() or platform.machine()}",
         f"- **Cores:** {os.cpu_count()}",
-        f"- **GPU:** {'CUDA ' + torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'None (CPU only)'}",
     ]
+    try:
+        gpu = (
+            subprocess.check_output(
+                ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                text=True,
+                timeout=5,
+            )
+            .strip()
+            .split("\n")[0]
+        )
+        lines.append(f"- **GPU:** {gpu}")
+    except (FileNotFoundError, subprocess.SubprocessError):
+        lines.append("- **GPU:** None (CPU only)")
     return "\n".join(lines)
 
 
-def create_synthetic_nc(tmp_dir, n_files=1):
-    """Create synthetic .nc files for benchmarking."""
-    tmp_dir = Path(tmp_dir)
-    tmp_dir.mkdir(parents=True, exist_ok=True)
-    files = []
-    rng = np.random.default_rng(42)
+def count_files(directory, pattern):
+    """Count files matching glob pattern in directory."""
+    return len(list(Path(directory).rglob(pattern)))
 
-    for i in range(n_files):
-        freqs = [38000.0, 70000.0]
-        n_pings = 200
-        n_depths = 500
-        ping_time = np.array(
-            [np.datetime64("2024-01-01") + np.timedelta64(j, "s") for j in range(n_pings)]
+
+def run_stage(service, env_overrides):
+    """Run a docker compose service with -e flags and return elapsed seconds."""
+    cmd = ["docker", "compose"]
+    for f in COMPOSE_FILES:
+        cmd.extend(["-f", f])
+    cmd.extend(["run", "--rm"])
+    for k, v in env_overrides.items():
+        cmd.extend(["-e", f"{k}={v}"])
+    cmd.append(service)
+
+    start = time.perf_counter()
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    elapsed = time.perf_counter() - start
+
+    if result.returncode != 0:
+        print(f"  WARNING: {service} exited with code {result.returncode}")
+        if result.stderr:
+            print(result.stderr[-500:])
+
+    return elapsed
+
+
+def clean_dir(path, protected):
+    """Remove and recreate a directory. Docker output is root-owned."""
+    path = Path(path).resolve()
+    assert path != Path(protected).resolve(), f"Refusing to delete input dir: {path}"
+    if path.exists():
+        # Docker creates files as root; use a container to wipe contents
+        subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{path}:/clean",
+                "alpine",
+                "sh",
+                "-c",
+                "rm -rf /clean/*",
+            ],
+            capture_output=True,
         )
-        depth = np.linspace(0, 500, n_depths)
-        sv_linear = 10 ** (rng.uniform(-80, -30, size=(2, n_pings, n_depths)) / 10)
-        sv = xr.DataArray(sv_linear, coords=[freqs, ping_time, depth], dims=["frequency", "ping_time", "depth"])
-        ds = xr.Dataset({"Sv": sv})
-        path = tmp_dir / f"bench_{i:04d}.nc"
-        ds.to_netcdf(path)
-        files.append(path)
-
-    return files
+    path.mkdir(parents=True, exist_ok=True)
 
 
-def bench_preprocessing(nc_files, output_dir, workers):
-    """Benchmark stage 2 preprocessing with given worker count."""
-    import sys
-    sys.path.insert(0, str(Path(__file__).parent / "preprocessing"))
-    os.environ["OUTPUT_DIR"] = str(output_dir)
-    os.environ["LOG_DIR"] = str(output_dir)
-
-    import preprocessing as pp
-
-    start = time.perf_counter()
-    for f in nc_files:
-        pp.sv_to_jpg(f, estimate_bot=True)
-    elapsed = time.perf_counter() - start
-    return elapsed
+@dataclass
+class StageResult:
+    workers: int
+    t1: float
+    t2: float
+    t3: float
+    total: float
+    per_file: float
+    n_raw: int
 
 
-def bench_inference(png_dir, output_dir, batch_size):
-    """Benchmark stage 3 inference with given batch size."""
-    import sys
-    sys.path.insert(0, str(Path(__file__).parent / "inference"))
+def run_benchmark(
+    data_dir, worker_counts, batch_size=4, device="cuda", downsample_size=1000
+):
+    """Run full pipeline for each worker count and collect timings."""
+    data_dir = Path(data_dir).resolve()
+    n_raw = count_files(data_dir, "*.raw")
+    raw_size_gb = sum(f.stat().st_size for f in data_dir.rglob("*.raw")) / 1e9
 
-    import inspect_attention as ia
-
-    device, model = ia.setup_device_and_model(
-        arch="vit_tiny", patch_size=16, pretrained_weights="checkpoint.pth"
-    )
-
-    all_pngs = list(Path(png_dir).rglob("*.png"))
-    if not all_pngs:
-        return 0.0
-
-    import torch
-    from PIL import Image
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    image_size = (256, 256)
-    start = time.perf_counter()
-    for i in range(0, len(all_pngs), batch_size):
-        batch = all_pngs[i:i + batch_size]
-        tensors = torch.stack([ia.process_image(f, image_size) for f in batch]).to(ia.DEVICE)
-        with torch.no_grad():
-            ia.get_attention_maps(model, tensors, image_size=image_size, patch_size=16)
-    elapsed = time.perf_counter() - start
-    return elapsed
-
-
-if __name__ == "__main__":
-    import tempfile
+    if n_raw == 0:
+        print("ERROR: No .raw files found. Run: bash download_bench_data.sh")
+        return
 
     print("# EchoFlow Benchmark\n")
     print("## Machine\n")
     print(get_machine_info())
-    print()
+    print("\n## Dataset\n")
+    print(f"- **Files:** {n_raw} EK80 `.raw` echograms")
+    print(f"- **Total size:** {raw_size_gb:.1f} GB")
+    print("- **Source:** NOAA WCSD public bucket (SH2306 cruise)\n")
 
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp = Path(tmp)
-        nc_dir = tmp / "nc"
-        pre_out = tmp / "pre_out"
-        inf_out = tmp / "inf_out"
-        pre_out.mkdir()
-        inf_out.mkdir()
+    bench_root = data_dir.parent  # data/benchmark/
+    raw_out = bench_root / "raw_consumer"
+    pre_out = bench_root / "preprocessing"
+    inf_out = bench_root / "inference"
+    log_out = bench_root / "log"
 
-        print("Creating synthetic data...")
-        nc_files = create_synthetic_nc(nc_dir, n_files=4)
+    results = []
 
-        print("\n## Stage 2: Preprocessing\n")
-        print("| Files | Time (s) |")
-        print("|-------|----------|")
-        t = bench_preprocessing(nc_files, pre_out, workers=1)
-        print(f"| {len(nc_files)} | {t:.2f} |")
+    for workers in worker_counts:
+        print(f"\n### MAX_WORKERS={workers}\n")
 
-        print("\n## Stage 3: Inference\n")
-        print("| Batch size | Files | Time (s) |")
-        print("|------------|-------|----------|")
-        for bs in [1, 2, 4]:
-            t = bench_inference(pre_out, inf_out, batch_size=bs)
-            pngs = list(pre_out.rglob("*.png"))
-            print(f"| {bs} | {len(pngs)} | {t:.2f} |")
+        clean_dir(raw_out, protected=data_dir)
+        clean_dir(pre_out, protected=data_dir)
+        clean_dir(inf_out, protected=data_dir)
+        clean_dir(log_out, protected=data_dir)
+
+        env = {
+            "MAX_WORKERS": str(workers),
+            "BATCH_SIZE": str(batch_size),
+            "KEEP_INTERMEDIATES": "false",
+            "DEVICE": device,
+            "DOWNSAMPLE_SIZE": str(downsample_size),
+        }
+
+        # Stage 1: raw -> .nc
+        print("  Stage 1 (raw -> netCDF) ...", end=" ", flush=True)
+        t1 = run_stage("raw", env)
+        n_nc = count_files(raw_out, "*.nc")
+        print(f"{t1:.1f}s ({n_nc} files)")
+
+        # Stage 2: .nc -> .png
+        print("  Stage 2 (preprocessing)  ...", end=" ", flush=True)
+        t2 = run_stage("preprocessing", env)
+        n_png = count_files(pre_out, "*.png")
+        print(f"{t2:.1f}s ({n_png} files)")
+
+        # Stage 3: .png -> attention maps
+        print("  Stage 3 (inference)      ...", end=" ", flush=True)
+        t3 = run_stage("infer", env)
+        n_attn = count_files(inf_out, "*.png")
+        print(f"{t3:.1f}s ({n_attn} files)")
+
+        total = t1 + t2 + t3
+        per_file = total / n_raw if n_raw else 0
+
+        results.append(
+            StageResult(
+                workers=workers,
+                t1=t1,
+                t2=t2,
+                t3=t3,
+                total=total,
+                per_file=per_file,
+                n_raw=n_raw,
+            )
+        )
+
+    # Summary table
+    print("\n## Results\n")
+    print(
+        "| Workers | Stage 1 (s) | Stage 2 (s) | Stage 3 (s) | Total (s) | s/file | Speedup |"
+    )
+    print(
+        "|---------|-------------|-------------|-------------|-----------|--------|---------|"
+    )
+    baseline = results[0].total if results else 1
+    for r in results:
+        speedup = baseline / r.total if r.total > 0 else 0
+        print(
+            f"| {r.workers} | {r.t1:.1f} | {r.t2:.1f} | {r.t3:.1f} "
+            f"| {r.total:.1f} | {r.per_file:.2f} | {speedup:.2f}x |"
+        )
+
+    # Extrapolation
+    if results:
+        best = min(results, key=lambda r: r.per_file)
+        secs_per_file = best.per_file
+        avg_file_gb = raw_size_gb / n_raw
+        files_per_tb = 1000 / avg_file_gb if avg_file_gb > 0 else 0
+        hours_per_tb = (secs_per_file * files_per_tb) / 3600
+
+        print("\n## Extrapolation\n")
+        print(
+            f"- **Best throughput:** {secs_per_file:.2f} s/file at {best.workers} workers"
+        )
+        print(f"- **Average file size:** {avg_file_gb * 1000:.0f} MB")
+        print(f"- **Estimated time for 1 TB:** {hours_per_tb:.1f} hours")
+        print(
+            f"- **Estimated time for 10 TB:** {hours_per_tb * 10:.0f} hours "
+            f"({hours_per_tb * 10 / 24:.1f} days)"
+        )
 
     print("\n*Run `python benchmark.py` to regenerate.*")
+
+
+if __name__ == "__main__":
+    import tyro
+
+    @dataclass
+    class Args:
+        """EchoFlow full-pipeline benchmark."""
+
+        data_dir: str = "data/benchmark/input"
+        """Directory containing .raw files."""
+        workers: str = "1,2,4,8"
+        """Comma-separated worker counts to test."""
+        batch_size: int = 4
+        """Inference batch size."""
+        device: str = "cuda"
+        """Inference device (cuda or cpu)."""
+        downsample_size: int = 1000
+        """Image size for inference (pixels)."""
+
+    args = tyro.cli(Args)
+    worker_counts = [int(w) for w in args.workers.split(",")]
+    run_benchmark(
+        args.data_dir, worker_counts, args.batch_size, args.device, args.downsample_size
+    )

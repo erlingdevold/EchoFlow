@@ -132,14 +132,31 @@ The dashboard is a **pipeline progress monitor** — it tracks file counts and t
 
 Stages 1 (conversion) and 2 (pre-processing) use process pools to parallelise work across files — controlled by the `MAX_WORKERS` env var (defaults to CPU count). Stage 3 (inference) uses batched GPU inference with a configurable `BATCH_SIZE` (default 4) and auto-detects CUDA when available. Because `.raw` files are large XML datagrams, file I/O is the primary bottleneck for stages 1–2; adding CPU cores within a node yields proportional throughput gains. Parallelism is intra-node only and there is no built-in cluster or scheduler integration.
 
-Run `python benchmark.py` to measure throughput on your hardware. Example output:
+### Benchmarking
 
-<!-- Run `python benchmark.py` to regenerate this table -->
-| Stage | Metric | Value |
-|-------|--------|-------|
-| Preprocessing (4 files) | Time | *run benchmark* |
-| Inference batch=1 | Time | *run benchmark* |
-| Inference batch=4 | Time | *run benchmark* |
+The benchmark script runs the full three-stage pipeline inside Docker on real EK80 data, varying `MAX_WORKERS` to measure scaling:
+
+```bash
+# 1. Download 64 test echograms (~6.4 GB) from NOAA public bucket
+bash download_bench_data.sh
+
+# 2. Build Docker images
+docker compose build
+
+# 3. Run benchmark (default: 1,2,4,8 workers)
+python benchmark.py
+```
+
+See `python benchmark.py --help` for options. Reference results on a 12-core Intel i7-12700, 32 GB RAM, RTX 3090 (64 files, 6.7 GB):
+
+| Workers | Stage 1 (s) | Stage 2 (s) | Stage 3 (s) | Total (s) | s/file |
+|---------|-------------|-------------|-------------|-----------|--------|
+| 1       | 139.6       | 514.0       | 393         | 1046.6    | 16.35  |
+| 2       | 86.5        | 275.7       | 393         | 755.2     | 11.80  |
+| 4       | 56.3        | 156.2       | 393         | 605.5     | 9.46   |
+| 8       | 56.9        | 97.2        | 393         | 547.1     | 8.55   |
+
+Stages 1–2 scale with `MAX_WORKERS`; stage 3 is GPU-bound. In production, stages overlap via the watchdog. Run `python benchmark.py` on your hardware to regenerate.
 
 ## ENV variables
 

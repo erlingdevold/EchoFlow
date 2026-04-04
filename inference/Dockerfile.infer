@@ -5,6 +5,7 @@ WORKDIR /app
 COPY ./inference/requirements.txt .
 
 RUN pip install watchdog
+RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 RUN pip install -r requirements.txt
 
 COPY ./entrypoint.sh .

@@ -190,9 +190,15 @@ def is_file_ready(file: Path, retries=20, wait_time=2) -> bool:
     while retry_count < retries:
         if not file.exists():
             log.warning(f"File {file} does not exist. Retry {retry_count}/{retries}")
+            time.sleep(wait_time)
+            retry_count += 1
+            continue
 
         if file.stat().st_size == 0:
             log.warning(f"File {file} is empty. Retry {retry_count}/{retries}")
+            time.sleep(wait_time)
+            retry_count += 1
+            continue
 
         try:
             ds = xr.open_dataset(file)
