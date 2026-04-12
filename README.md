@@ -143,7 +143,10 @@ bash download_bench_data.sh
 # 2. Build Docker images
 docker compose build
 
-# 3. Run benchmark (default: 1,2,4,8 workers)
+# 3. Install requirements
+pip install tyro
+
+# 4. Run benchmark (default: 1,2,4,8 workers)
 python benchmark.py
 ```
 
