@@ -1,7 +1,8 @@
 # Echoflow
 [![CI](https://github.com/erlingdevold/EchoFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/erlingdevold/EchoFlow/actions)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15634054.svg)](https://doi.org/10.5281/zenodo.15634054)
-[![status](https://joss.theoj.org/papers/5c9046c3818c08881b51acf6be8d79dc/status.svg)](https://joss.theoj.org/papers/5c9046c3818c08881b51acf6be8d79dc)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19534258.svg)](https://doi.org/10.5281/zenodo.19534258)
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.09240/status.svg)](https://doi.org/10.21105/joss.09240)
+
 
 > Do you have Terabytes of unprocessed Sonar data? Use this for easy viewing and inference!
 
